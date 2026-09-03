@@ -1,0 +1,37 @@
+{
+  "name": "ilera-point",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"node --watch server/index.js\"",
+    "build": "vite build",
+    "preview": "vite preview",
+    "start": "node server/index.js",
+    "test": "vitest run",
+    "benchmark:hausa": "node scripts/benchmark-hausa.mjs"
+  },
+  "dependencies": {
+    "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",
+    "@mediapipe/tasks-vision": "^1.0.1",
+    "@supabase/supabase-js": "^2.113.0",
+    "@vitejs/plugin-react": "latest",
+    "cors": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "lucide-react": "latest",
+    "multer": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "ws": "8.21.3"
+  },
+  "devDependencies": {
+    "autoprefixer": "latest",
+    "concurrently": "latest",
+    "postcss": "latest",
+    "puppeteer-core": "^25.9.0",
+    "tailwindcss": "3.4.17",
+    "vite": "latest",
+    "vitest": "latest"
+  }
+}

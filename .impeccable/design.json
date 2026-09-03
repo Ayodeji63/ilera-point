@@ -1,0 +1,196 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-03T00:00:00+01:00",
+  "title": "Design System: IleraPoint",
+  "extensions": {
+    "colorMeta": {
+      "clinic-green": { "role": "primary", "displayName": "Clinic Green", "canonical": "#103f33", "tonalRamp": ["oklch(15% 0.050 165)", "oklch(25% 0.050 165)", "#103f33", "oklch(45% 0.050 165)", "oklch(58% 0.045 165)", "oklch(70% 0.035 165)", "oklch(84% 0.020 165)", "oklch(95% 0.008 165)"] },
+      "route-green": { "role": "primary", "displayName": "Route Green", "canonical": "#1d6e59", "tonalRamp": ["oklch(15% 0.065 165)", "oklch(25% 0.065 165)", "oklch(35% 0.065 165)", "#1d6e59", "oklch(58% 0.060 165)", "oklch(70% 0.050 165)", "oklch(84% 0.030 165)", "oklch(95% 0.012 165)"] },
+      "sunlit-yellow": { "role": "secondary", "displayName": "Sunlit Yellow", "canonical": "#f2d533", "tonalRamp": ["oklch(15% 0.115 95)", "oklch(25% 0.115 95)", "oklch(35% 0.115 95)", "oklch(48% 0.115 95)", "oklch(62% 0.115 95)", "oklch(75% 0.115 95)", "#f2d533", "oklch(95% 0.050 95)"] },
+      "chalk-white": { "role": "neutral", "displayName": "Chalk White", "canonical": "#f4f0e5", "tonalRamp": ["oklch(15% 0.015 90)", "oklch(25% 0.015 90)", "oklch(35% 0.015 90)", "oklch(48% 0.015 90)", "oklch(62% 0.015 90)", "oklch(75% 0.015 90)", "oklch(86% 0.012 90)", "#f4f0e5"] },
+      "paper-white": { "role": "neutral", "displayName": "Paper White", "canonical": "#ffffff", "tonalRamp": ["#262626", "#404040", "#595959", "#737373", "#999999", "#bfbfbf", "#e6e6e6", "#ffffff"] },
+      "slate-green": { "role": "neutral", "displayName": "Slate Green", "canonical": "#527269", "tonalRamp": ["oklch(15% 0.025 165)", "oklch(25% 0.025 165)", "oklch(35% 0.025 165)", "#527269", "oklch(58% 0.025 165)", "oklch(70% 0.020 165)", "oklch(84% 0.012 165)", "oklch(95% 0.005 165)"] },
+      "mist-green": { "role": "neutral", "displayName": "Mist Green", "canonical": "#b8d5cc", "tonalRamp": ["oklch(15% 0.025 165)", "oklch(25% 0.025 165)", "oklch(35% 0.025 165)", "oklch(48% 0.025 165)", "oklch(62% 0.025 165)", "oklch(75% 0.020 165)", "#b8d5cc", "oklch(95% 0.006 165)"] },
+      "divider-green": { "role": "neutral", "displayName": "Divider Green", "canonical": "#d8e1dc", "tonalRamp": ["oklch(15% 0.012 165)", "oklch(25% 0.012 165)", "oklch(35% 0.012 165)", "oklch(48% 0.012 165)", "oklch(62% 0.012 165)", "oklch(75% 0.010 165)", "#d8e1dc", "oklch(95% 0.004 165)"] },
+      "field-chalk": { "role": "neutral", "displayName": "Field Chalk", "canonical": "#f1f3ee", "tonalRamp": ["oklch(15% 0.010 135)", "oklch(25% 0.010 135)", "oklch(35% 0.010 135)", "oklch(48% 0.010 135)", "oklch(62% 0.010 135)", "oklch(75% 0.008 135)", "oklch(86% 0.006 135)", "#f1f3ee"] },
+      "edit-chalk": { "role": "neutral", "displayName": "Edit Chalk", "canonical": "#edf0eb", "tonalRamp": ["oklch(15% 0.010 135)", "oklch(25% 0.010 135)", "oklch(35% 0.010 135)", "oklch(48% 0.010 135)", "oklch(62% 0.010 135)", "oklch(75% 0.008 135)", "oklch(86% 0.006 135)", "#edf0eb"] },
+      "status-green-wash": { "role": "neutral", "displayName": "Status Green Wash", "canonical": "#e7f1ed", "tonalRamp": ["oklch(15% 0.025 165)", "oklch(25% 0.025 165)", "oklch(35% 0.025 165)", "oklch(48% 0.025 165)", "oklch(62% 0.022 165)", "oklch(75% 0.018 165)", "oklch(86% 0.012 165)", "#e7f1ed"] },
+      "muted-control": { "role": "neutral", "displayName": "Muted Control", "canonical": "#e3e7e3", "tonalRamp": ["oklch(15% 0.008 145)", "oklch(25% 0.008 145)", "oklch(35% 0.008 145)", "oklch(48% 0.008 145)", "oklch(62% 0.007 145)", "oklch(75% 0.006 145)", "oklch(86% 0.004 145)", "#e3e7e3"] },
+      "transcript-ink": { "role": "neutral", "displayName": "Transcript Ink", "canonical": "#36564e", "tonalRamp": ["oklch(15% 0.030 165)", "oklch(25% 0.030 165)", "#36564e", "oklch(48% 0.030 165)", "oklch(62% 0.026 165)", "oklch(75% 0.020 165)", "oklch(84% 0.012 165)", "oklch(95% 0.005 165)"] },
+      "placeholder-green": { "role": "neutral", "displayName": "Placeholder Green", "canonical": "#7f908b", "tonalRamp": ["oklch(15% 0.018 165)", "oklch(25% 0.018 165)", "oklch(35% 0.018 165)", "oklch(48% 0.018 165)", "#7f908b", "oklch(70% 0.015 165)", "oklch(84% 0.009 165)", "oklch(95% 0.004 165)"] },
+      "manual-placeholder-green": { "role": "neutral", "displayName": "Manual Lookup Placeholder Green", "canonical": "#45655d", "tonalRamp": ["oklch(15% 0.025 165)", "oklch(25% 0.025 165)", "#45655d", "oklch(48% 0.025 165)", "oklch(62% 0.022 165)", "oklch(75% 0.016 165)", "oklch(84% 0.010 165)", "oklch(95% 0.004 165)"] },
+      "future-stop": { "role": "neutral", "displayName": "Future Stop", "canonical": "#c7c8bc", "tonalRamp": ["oklch(15% 0.012 100)", "oklch(25% 0.012 100)", "oklch(35% 0.012 100)", "oklch(48% 0.012 100)", "oklch(62% 0.010 100)", "oklch(75% 0.008 100)", "#c7c8bc", "oklch(95% 0.003 100)"] },
+      "camera-deep-green": { "role": "neutral", "displayName": "Camera Deep Green", "canonical": "#092c24", "tonalRamp": ["oklch(15% 0.040 165)", "#092c24", "oklch(35% 0.040 165)", "oklch(48% 0.038 165)", "oklch(62% 0.030 165)", "oklch(75% 0.022 165)", "oklch(84% 0.014 165)", "oklch(95% 0.005 165)"] },
+      "capture-ready-green": { "role": "tertiary", "displayName": "Capture Ready Green", "canonical": "#55e39b", "tonalRamp": ["oklch(15% 0.120 155)", "oklch(25% 0.120 155)", "oklch(35% 0.120 155)", "oklch(48% 0.120 155)", "oklch(62% 0.115 155)", "#55e39b", "oklch(84% 0.070 155)", "oklch(95% 0.025 155)"] },
+      "listening-coral": { "role": "secondary", "displayName": "Listening Coral", "canonical": "#ef755f", "tonalRamp": ["oklch(15% 0.135 30)", "oklch(25% 0.135 30)", "oklch(35% 0.135 30)", "oklch(48% 0.135 30)", "oklch(62% 0.130 30)", "#ef755f", "oklch(84% 0.070 30)", "oklch(95% 0.025 30)"] },
+      "alert-oxblood": { "role": "tertiary", "displayName": "Alert Oxblood", "canonical": "#8e2f24", "tonalRamp": ["oklch(15% 0.115 30)", "oklch(25% 0.115 30)", "#8e2f24", "oklch(48% 0.115 30)", "oklch(62% 0.105 30)", "oklch(75% 0.075 30)", "oklch(84% 0.050 30)", "oklch(95% 0.018 30)"] },
+      "warning-wash": { "role": "neutral", "displayName": "Warning Wash", "canonical": "#fff2c7", "tonalRamp": ["oklch(15% 0.070 90)", "oklch(25% 0.070 90)", "oklch(35% 0.070 90)", "oklch(48% 0.070 90)", "oklch(62% 0.065 90)", "oklch(75% 0.055 90)", "oklch(86% 0.040 90)", "#fff2c7"] },
+      "warning-ink": { "role": "neutral", "displayName": "Warning Ink", "canonical": "#6d5510", "tonalRamp": ["oklch(15% 0.075 90)", "#6d5510", "oklch(35% 0.075 90)", "oklch(48% 0.070 90)", "oklch(62% 0.060 90)", "oklch(75% 0.045 90)", "oklch(84% 0.030 90)", "oklch(95% 0.012 90)"] },
+      "success-wash": { "role": "neutral", "displayName": "Success Wash", "canonical": "#dff2e9", "tonalRamp": ["oklch(15% 0.035 160)", "oklch(25% 0.035 160)", "oklch(35% 0.035 160)", "oklch(48% 0.035 160)", "oklch(62% 0.030 160)", "oklch(75% 0.025 160)", "oklch(86% 0.018 160)", "#dff2e9"] },
+      "success-ink": { "role": "neutral", "displayName": "Success Ink", "canonical": "#155944", "tonalRamp": ["oklch(15% 0.060 160)", "oklch(25% 0.060 160)", "#155944", "oklch(48% 0.055 160)", "oklch(62% 0.045 160)", "oklch(75% 0.035 160)", "oklch(84% 0.022 160)", "oklch(95% 0.008 160)"] },
+      "error-wash": { "role": "neutral", "displayName": "Error Wash", "canonical": "#fff0e8", "tonalRamp": ["oklch(15% 0.035 45)", "oklch(25% 0.035 45)", "oklch(35% 0.035 45)", "oklch(48% 0.035 45)", "oklch(62% 0.030 45)", "oklch(75% 0.025 45)", "oklch(86% 0.018 45)", "#fff0e8"] },
+      "error-ink": { "role": "neutral", "displayName": "Error Ink", "canonical": "#8b311f", "tonalRamp": ["oklch(15% 0.105 35)", "oklch(25% 0.105 35)", "#8b311f", "oklch(48% 0.100 35)", "oklch(62% 0.085 35)", "oklch(75% 0.060 35)", "oklch(84% 0.040 35)", "oklch(95% 0.015 35)"] },
+      "focus-blue": { "role": "tertiary", "displayName": "Focus Blue", "canonical": "#0a78ff", "tonalRamp": ["oklch(15% 0.180 255)", "oklch(25% 0.180 255)", "oklch(35% 0.180 255)", "#0a78ff", "oklch(62% 0.170 255)", "oklch(75% 0.125 255)", "oklch(84% 0.080 255)", "oklch(95% 0.025 255)"] }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Brief welcome, emergency, and completion statements readable at kiosk distance." },
+      "headline": { "displayName": "Route Question", "purpose": "The single active interview prompt." },
+      "title": { "displayName": "Panel Title", "purpose": "Record and supporting-panel headings." },
+      "compact-title": { "displayName": "Compact Title", "purpose": "Transcript-card headings in the narrow supporting column." },
+      "body": { "displayName": "Guidance", "purpose": "Patient reassurance, transcripts, and descriptive copy." },
+      "label": { "displayName": "Wayfinding Label", "purpose": "Progress, fields, and compact metadata." }
+    },
+    "shadows": [
+      { "name": "route-lift", "value": "0 18px 45px rgba(16, 63, 51, 0.12)", "purpose": "Grounds dark route panels and the welcome action above the chalk canvas." },
+      { "name": "panel-lift", "value": "0 16px 40px rgba(16, 63, 51, 0.10)", "purpose": "Separates white notes and record surfaces." },
+      { "name": "compact-lift", "value": "0 8px 22px rgba(16, 63, 51, 0.10)", "purpose": "Lifts the compact language control." },
+      { "name": "action-lift", "value": "0 10px 25px rgba(16, 63, 51, 0.08)", "purpose": "Supports secondary white actions." }
+    ],
+    "motion": [
+      { "name": "welcome-action", "value": "transform 300ms; hover scale(1.025); active scale(0.98)", "purpose": "Confirms the dominant start action without distracting motion." },
+      { "name": "listening-ring", "value": "1.8s cubic-bezier(.2,.8,.2,1) infinite; second ring delayed 700ms", "purpose": "Makes active microphone capture unmistakable." },
+      { "name": "recording-status-pulse", "value": "pulse; repeating while consented visit capture is active", "purpose": "Keeps the persistent Visit recording indicator noticeable without competing with the current question." },
+      { "name": "palm-trace-feedback", "value": "local landmark refresh every 450ms; yellow adjusting state; green ready state after four stable samples", "purpose": "Turns MediaPipe hand geometry into calm, continuous automatic-capture guidance without a shutter action." },
+      { "name": "reduced-motion", "value": "animation-duration: 0.01ms; animation-iteration-count: 1", "purpose": "Disables repeating motion when reduced motion is requested." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Commits, continues, or submits the current route step.",
+      "html": "<button class=\"ds-btn-primary\">Continue to clinician review</button>",
+      "css": ".ds-btn-primary { min-height:64px; padding:16px 24px; border:0; border-radius:14px; background:#103f33; color:#fff; font:900 18px/1.25 'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; cursor:pointer; transition:transform 150ms,opacity 150ms; } .ds-btn-primary:hover { transform:translateY(-1px); } .ds-btn-primary:active { transform:scale(.98); } .ds-btn-primary:focus-visible { outline:4px solid #0a78ff; outline-offset:4px; } .ds-btn-primary:disabled { opacity:.4; cursor:default; }"
+    },
+    {
+      "name": "Recording Consent Choices",
+      "kind": "button",
+      "description": "A balanced pair that requests explicit recording consent without making refusal look unavailable.",
+      "html": "<div class=\"ds-consent-actions\"><button class=\"ds-consent-yes\">I agree — record this visit</button><button class=\"ds-consent-no\">Continue without video</button></div>",
+      "css": ".ds-consent-actions { display:grid; gap:12px; width:min(100%,520px); padding:24px; border-radius:16px; background:#103f33; font-family:'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; } .ds-consent-actions button { min-height:64px; padding:16px 24px; border:0; border-radius:14px; font-size:18px; font-weight:900; cursor:pointer; transition:transform 150ms,opacity 150ms; } .ds-consent-yes { background:#f2d533; color:#103f33; } .ds-consent-no { background:rgba(255,255,255,.10); color:#fff; } .ds-consent-actions button:hover { transform:translateY(-1px); } .ds-consent-actions button:active { transform:scale(.98); } .ds-consent-actions button:focus-visible { outline:4px solid #0a78ff; outline-offset:4px; } .ds-consent-actions button:disabled { opacity:.6; cursor:default; }"
+    },
+    {
+      "name": "Voice Button",
+      "kind": "button",
+      "refersTo": "button-voice",
+      "description": "The primary microphone action during the interview's seven-question safety ceiling.",
+      "html": "<button class=\"ds-btn-voice\" aria-label=\"Start recording\"><svg viewBox=\"0 0 24 24\" width=\"48\" height=\"48\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z\"/><path d=\"M19 10v2a7 7 0 0 1-14 0v-2\"/><line x1=\"12\" x2=\"12\" y1=\"19\" y2=\"22\"/></svg></button>",
+      "css": ".ds-btn-voice { display:grid; place-items:center; width:128px; height:128px; padding:0; border:0; border-radius:9999px; background:#f2d533; color:#103f33; cursor:pointer; transition:transform 150ms; } .ds-btn-voice:hover { transform:scale(1.025); } .ds-btn-voice:active { transform:scale(.95); } .ds-btn-voice:focus-visible { outline:4px solid #0a78ff; outline-offset:4px; } .ds-btn-voice:disabled { opacity:.6; cursor:wait; }"
+    },
+    {
+      "name": "Typed Answer Field",
+      "kind": "input",
+      "refersTo": "field-answer",
+      "description": "A visible recovery path when speaking is unavailable or unwanted.",
+      "html": "<textarea class=\"ds-field-answer\" rows=\"2\" placeholder=\"Type here…\"></textarea>",
+      "css": ".ds-field-answer { box-sizing:border-box; width:100%; min-height:64px; resize:none; padding:12px 16px; border:0; border-radius:14px; background:#f1f3ee; color:#103f33; font:600 16px/1.5 'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; } .ds-field-answer::placeholder { color:#7f908b; opacity:1; } .ds-field-answer:hover { background:#edf0eb; } .ds-field-answer:focus-visible { outline:4px solid #0a78ff; outline-offset:4px; } .ds-field-answer:disabled { opacity:.6; }"
+    },
+    {
+      "name": "Route Panel",
+      "kind": "card",
+      "refersTo": "card-route",
+      "description": "The dark, grounded board that carries the current question and voice action.",
+      "html": "<section class=\"ds-card-route\"><div class=\"ds-route-label\">QUESTION 2 · UP TO 7</div><h2>When did this start?</h2><p>Speak in the language that feels natural to you.</p></section>",
+      "css": ".ds-card-route { max-width:720px; padding:40px; border-radius:16px; background:#103f33; color:#fff; box-shadow:0 18px 45px rgba(16,63,51,.12); font-family:'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; } .ds-card-route h2 { margin:40px 0 0; max-width:16ch; font-size:clamp(2.4rem,5vw,4.8rem); font-weight:900; line-height:1.02; letter-spacing:-.04em; text-wrap:balance; } .ds-card-route p { margin:20px 0 0; color:#b8d5cc; font-size:18px; font-weight:600; line-height:1.6; } .ds-route-label { color:#b8d5cc; font-size:14px; font-weight:900; letter-spacing:.12em; }"
+    },
+    {
+      "name": "Palm Onboarding Board",
+      "kind": "custom",
+      "description": "Separate returning- and new-patient routes combine local traced auto-capture, details-first signup, manual lookup, and a timed or failure-triggered no-palm escape.",
+      "html": "<section class=\"ds-palm-board\"><div class=\"ds-palm-scan\"><h2>Welcome back.</h2><p>Show one open palm. We trace it and capture automatically.</p><small>Your palm image is used only during this step and is not stored by IleraPoint.</small><div class=\"ds-palm-view\"><svg viewBox=\"0 0 100 75\" aria-hidden=\"true\"><path d=\"M49 63 35 49 31 35c-1-4 5-6 7-2l4 9-1-25c0-5 7-5 7 0v18-24c0-5 7-5 7 0v24-20c0-5 7-5 7 0v23-15c0-5 7-5 7 0v24c0 8-7 16-20 16Z\"/></svg></div><div class=\"ds-palm-status\"><i></i>Palm in frame — capturing automatically</div></div><aside class=\"ds-palm-route\"><div class=\"ds-patient-type\"><button class=\"ds-active\">Returning patient</button><button>I’m a new patient</button></div><h3>Find your existing record</h3><p>Your palm is checked automatically. If that does not work, search by name or phone.</p><div class=\"ds-divider\">Manual lookup</div><input aria-label=\"Patient name\" placeholder=\"Full name\"><input aria-label=\"Phone number\" placeholder=\"Phone number\"><button class=\"ds-lookup\">Search patient records</button><button class=\"ds-no-palm\">Continue without palm</button></aside></section>",
+      "css": ".ds-palm-board { display:grid; grid-template-columns:1.08fr .92fr; gap:24px; max-width:1100px; color:#103f33; font-family:'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; } .ds-palm-scan,.ds-palm-route { padding:28px; border-radius:16px; } .ds-palm-scan { background:#103f33; color:#fff; box-shadow:0 18px 45px rgba(16,63,51,.12); } .ds-palm-scan h2,.ds-palm-route h3 { margin:0; font-size:32px; font-weight:900; letter-spacing:-.03em; } .ds-palm-scan p { margin:12px 0 0; color:#b8d5cc; font-size:18px; font-weight:600; } .ds-palm-scan small { display:block; margin-top:8px; color:rgba(255,255,255,.8); font-size:14px; font-weight:700; } .ds-palm-route { background:#fff; box-shadow:0 16px 40px rgba(16,63,51,.10); } .ds-palm-route h3 { margin-top:28px; } .ds-palm-route p { color:#527269; font-weight:600; } .ds-palm-view { display:grid; place-items:center; aspect-ratio:4/3; margin-top:24px; overflow:hidden; border-radius:16px; background:#092c24; } .ds-palm-view::before { content:''; position:absolute; width:55%; height:70%; border:3px dashed #55e39b; border-radius:42%; } .ds-palm-view svg { z-index:1; width:58%; fill:none; stroke:#55e39b; stroke-width:1.2; stroke-linecap:round; stroke-linejoin:round; } .ds-palm-status { display:flex; align-items:center; gap:12px; min-height:56px; margin-top:16px; padding:0 16px; border-radius:14px; background:rgba(255,255,255,.1); font-weight:900; } .ds-palm-status i { width:12px; height:12px; border-radius:9999px; background:#55e39b; } .ds-patient-type { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:6px; border-radius:14px; background:#edf0eb; } .ds-patient-type button { min-height:48px; border:0; border-radius:10px; background:transparent; color:#45655d; font-weight:900; cursor:pointer; } .ds-patient-type .ds-active { background:#103f33; color:#fff; } .ds-divider { display:flex; align-items:center; gap:12px; margin:24px 0; color:#527269; font-size:14px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; } .ds-divider::before,.ds-divider::after { content:''; flex:1; height:1px; background:#d8e1dc; } .ds-palm-route input { box-sizing:border-box; width:100%; min-height:56px; margin-top:12px; padding:12px 16px; border:0; border-radius:14px; background:#f1f3ee; color:#103f33; font-weight:600; } .ds-palm-route input::placeholder { color:#45655d; opacity:1; } .ds-palm-route>.ds-lookup,.ds-palm-route>.ds-no-palm { width:100%; min-height:56px; margin-top:12px; border:0; border-radius:14px; font-weight:900; cursor:pointer; } .ds-lookup { background:#e7f1ed; color:#155944; } .ds-no-palm { background:#103f33; color:#fff; } .ds-palm-board input:focus-visible,.ds-palm-board button:focus-visible { outline:4px solid #0a78ff; outline-offset:4px; } .ds-palm-board button:hover { transform:translateY(-1px); } .ds-palm-board button:active { transform:scale(.98); } @media(max-width:760px){.ds-palm-board{grid-template-columns:1fr}}"
+    },
+    {
+      "name": "Visit Recording Indicator",
+      "kind": "chip",
+      "refersTo": "status-recording",
+      "description": "A persistent bottom-left status shown only after explicit consent while the visit recording remains active.",
+      "html": "<div class=\"ds-recording-status\" role=\"status\"><span></span><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m16 13 5 3V8l-5 3\"/><rect width=\"13\" height=\"12\" x=\"3\" y=\"6\" rx=\"2\"/></svg>Visit recording</div>",
+      "css": ".ds-recording-status { display:inline-flex; align-items:center; gap:8px; padding:8px 16px; border-radius:9999px; background:#8e2f24; color:#fff; box-shadow:0 8px 22px rgba(16,63,51,.20); font:900 16px/1.4 'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; } .ds-recording-status span { width:12px; height:12px; border-radius:9999px; background:#fff; animation:ds-record-pulse 1.5s ease-in-out infinite; } @keyframes ds-record-pulse { 50% { opacity:.35; } } @media(prefers-reduced-motion:reduce){.ds-recording-status span{animation:none}}"
+    },
+    {
+      "name": "Doctor Queue Row",
+      "kind": "nav",
+      "description": "An oldest-first clinician queue entry with patient, time, chief complaint, and textual urgency cues.",
+      "html": "<button class=\"ds-queue-row\"><span><strong>Amina Bello</strong><small>02 Sep 2026, 10:14</small></span><span><b>Chest discomfort since morning</b><em>Urgent red flag</em></span><svg viewBox=\"0 0 24 24\" width=\"24\" height=\"24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14M13 6l6 6-6 6\"/></svg></button>",
+      "css": ".ds-queue-row { display:grid; grid-template-columns:1fr 1.3fr auto; align-items:center; gap:16px; width:100%; padding:20px; border:0; border-bottom:1px solid #d8e1dc; background:#fff; color:#103f33; text-align:left; font-family:'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; cursor:pointer; } .ds-queue-row strong { display:block; font-size:20px; } .ds-queue-row small { display:block; margin-top:4px; color:#527269; font-size:14px; font-weight:700; } .ds-queue-row b { display:block; color:#36564e; font-size:16px; } .ds-queue-row em { display:block; margin-top:8px; color:#8e2f24; font-style:normal; font-weight:900; } .ds-queue-row svg { color:#1d6e59; } .ds-queue-row:hover { background:#f7f8f5; } .ds-queue-row:focus-visible { outline:4px solid #0a78ff; outline-offset:-4px; } @media(max-width:700px){.ds-queue-row{grid-template-columns:1fr auto}.ds-queue-row>span:nth-child(2){grid-column:1/-1;grid-row:2}}"
+    },
+    {
+      "name": "Doctor Case Evidence Card",
+      "kind": "card",
+      "description": "A clinician evidence surface that labels patient-reported facts and keeps review actions subordinate to the record.",
+      "html": "<article class=\"ds-case-card\"><header><div><h2>Amina Bello</h2><p>Patient-reported record</p></div><span>pending</span></header><dl><div><dt>Main concern</dt><dd>Chest discomfort</dd></div><div><dt>Onset</dt><dd>This morning</dd></div><div><dt>Medication history</dt><dd>Not provided</dd></div></dl><div class=\"ds-case-actions\"><button>Approve</button><button>Flag follow-up</button></div></article>",
+      "css": ".ds-case-card { max-width:620px; padding:24px; border-radius:16px; background:#fff; color:#103f33; box-shadow:0 16px 40px rgba(16,63,51,.08); font-family:'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; } .ds-case-card header { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; padding:20px; border-radius:14px; background:#103f33; color:#fff; } .ds-case-card h2,.ds-case-card p { margin:0; } .ds-case-card h2 { font-size:28px; font-weight:900; letter-spacing:-.03em; } .ds-case-card p { margin-top:5px; color:#b8d5cc; font-weight:700; } .ds-case-card header span { padding:6px 12px; border-radius:9999px; background:rgba(255,255,255,.10); font-weight:900; } .ds-case-card dl { margin:16px 0 0; } .ds-case-card dl div { padding:14px 0; border-bottom:1px solid #d8e1dc; } .ds-case-card dt { color:#527269; font-size:13px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; } .ds-case-card dd { margin:6px 0 0; font-size:18px; font-weight:800; } .ds-case-actions { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:18px; } .ds-case-actions button { min-height:56px; border:0; border-radius:14px; background:#1d6e59; color:#fff; font-weight:900; cursor:pointer; } .ds-case-actions button+button { background:#f2d533; color:#103f33; } .ds-case-actions button:hover { transform:translateY(-1px); } .ds-case-actions button:focus-visible { outline:4px solid #0a78ff; outline-offset:4px; }"
+    },
+    {
+      "name": "Editable Summary Row",
+      "kind": "custom",
+      "refersTo": "field-summary-edit",
+      "description": "A stable patient-record row with 48px edit, save, and cancel controls; medicines use the same pattern.",
+      "html": "<div class=\"ds-summary-row\"><strong>Medicines</strong><input aria-label=\"Edit Medicines\" value=\"Paracetamol\"/><div class=\"ds-summary-actions\"><button class=\"ds-summary-save\" aria-label=\"Save Medicines\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"m5 12 4 4L19 6\"/></svg></button><button class=\"ds-summary-cancel\" aria-label=\"Cancel editing Medicines\"><svg viewBox=\"0 0 24 24\" width=\"20\" height=\"20\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M18 6 6 18M6 6l12 12\"/></svg></button></div></div>",
+      "css": ".ds-summary-row { display:grid; grid-template-columns:190px minmax(0,1fr) auto; align-items:center; gap:12px; padding:20px 0; border-bottom:1px solid #d8e1dc; color:#527269; font:900 16px/1.4 'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; } .ds-summary-row input { box-sizing:border-box; width:100%; min-height:48px; padding:12px 16px; border:0; border-radius:12px; background:#edf0eb; color:#103f33; font:800 18px/1.3 'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; } .ds-summary-actions { display:flex; gap:8px; } .ds-summary-actions button { display:grid; place-items:center; width:48px; height:48px; border:0; border-radius:12px; font-weight:900; cursor:pointer; } .ds-summary-save { background:#1d6e59; color:#fff; } .ds-summary-cancel { background:#e3e7e3; color:#103f33; } .ds-summary-actions button:hover { transform:translateY(-1px); } .ds-summary-actions button:active { transform:scale(.96); } .ds-summary-row input:focus-visible,.ds-summary-actions button:focus-visible { outline:4px solid #0a78ff; outline-offset:4px; } @media(max-width:640px){.ds-summary-row{grid-template-columns:1fr}.ds-summary-actions{justify-content:flex-start}}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Care Route Board",
+    "overview": "IleraPoint makes a clinical intake feel like following a clear, human route rather than completing a form. Its visual world borrows the certainty of wayfinding: one dominant instruction, visible route choices, seven safety-ceiling stops, oversized directional controls, and high-contrast panels that can be read at kiosk distance. The same board language now spans returning-patient identification, new-patient signup and palm enrollment, informed recording consent, voice intake, clinician review, and a deliberately separate prescription stage.\n\nThe atmosphere is calm but not timid. Deep clinic green provides institutional trust, sunlit yellow identifies the next physical action, and chalk-toned backgrounds keep the environment warm and public-facing. Strong type, sparse choices, and grounded panels prioritize low-literacy clarity without making the experience childish.",
+    "keyCharacteristics": [
+      "Oversized wayfinding copy with one obvious action per stage.",
+      "Clinic green structure, sunlit yellow direction, and chalk-white breathing room.",
+      "Squared route panels softened by modest corners; circles are reserved for voice, status, and compact controls.",
+      "Bold, hyperlegible type designed for standing distance and touch-first use.",
+      "Persistent visible status, saved-answer count, deterministic correction controls, transcription, consent state, and multilingual reassurance.",
+      "A two-route identity board: automatic palm or manual lookup for returning patients, and details-first signup for new patients.",
+      "Local hand tracing and automatic capture with explicit transient-image reassurance and a timed no-palm escape.",
+      "A denser but visually related doctor workspace with an oldest-first queue, evidence-first case review, and prescription as a separate committing step."
+    ],
+    "rules": [
+      { "name": "The Yellow Means Go Rule", "body": "Sunlit yellow identifies the action or route position that moves the encounter forward; do not spend it on passive decoration.", "section": "colors" },
+      { "name": "The Oxblood Means Active Attention Rule", "body": "Alert oxblood belongs only to deterministic emergency treatment and the explicit “Visit recording” status. Recoverable errors use the softer error wash and ink pair.", "section": "colors" },
+      { "name": "The Distance Test Rule", "body": "The current question, state, and next action must remain legible from standing kiosk distance; never trade type size or contrast for density.", "section": "typography" },
+      { "name": "The One Family Rule", "body": "Use the hyperlegible family across interface copy. Hierarchy comes from scale, weight, case, and spacing—not a decorative second typeface.", "section": "typography" },
+      { "name": "The One Route Rule", "body": "Each patient stage gives the primary instruction and primary physical action the largest share of space; supporting notes remain adjacent or directly below, never competitive.", "section": "layout" },
+      { "name": "The Grounded Board Rule", "body": "Shadows establish a readable layer order, not spectacle. Do not stack multiple floating surfaces or add colored glows outside active progress and recording feedback.", "section": "elevation" },
+      { "name": "The Circle Has Meaning Rule", "body": "Use circles for voice, progress, and compact status—not as a generic card silhouette. The contrast between circular actions and squared information panels makes the route scannable.", "section": "shapes" },
+      { "name": "The Equal Access Rule", "body": "Palm scanning is the primary identity action, not a gate to care. Returning patients retain manual lookup, and new patients gain a no-palm continuation after the timed or hardware-failure threshold.", "section": "components" },
+      { "name": "The Details Before Enrollment Rule", "body": "New-patient name and phone must be entered and confirmed before the palm scan can enroll an identity or the patient can continue to conversation.", "section": "components" },
+      { "name": "The Transient Palm Rule", "body": "Keep local tracing, automatic capture, and non-storage reassurance visible together. Never imply that IleraPoint saves the palm image or requires a person to press a capture control.", "section": "components" },
+      { "name": "The Evidence Before Action Rule", "body": "Clinician decisions follow the record, transcript, and available recording in reading order. Status and safety information must never rely on color alone.", "section": "components" },
+      { "name": "The Prescribing Is a Commitment Rule", "body": "Do not collapse prescription fields into the case action rail or style them as a quick inline note. The dedicated stage makes clinician authorship and completion consequence explicit.", "section": "components" }
+    ],
+    "dos": [
+      "Do make the current instruction and next physical action unmistakable at kiosk distance.",
+      "Do use clinic green for structure and sunlit yellow sparingly for route direction.",
+      "Do pair color-coded progress and status with explicit text or icons.",
+      "Do keep the saved-answer count visible and offer “Redo my last answer” after every saved turn.",
+      "Do keep summary editing local, reversible, and touch-safe with 48px Edit, Save, and Cancel controls.",
+      "Do keep touch targets at least 44px high, with primary actions typically 56–64px and the voice control 128px.",
+      "Do retain the 4px focus-blue outline and reduced-motion fallback.",
+      "Do let multilingual reassurance remain visible without creating a dense language-selection step.",
+      "Do preserve separate returning- and new-patient routes; collect and confirm new-patient details before palm enrollment and before conversation.",
+      "Do keep manual name/phone lookup available throughout the returning-patient route.",
+      "Do pair local MediaPipe tracing and automatic capture status with the plain-language promise that palm images are transient and not stored.",
+      "Do expose Continue without palm after 12 seconds of new-patient scanning and immediately on camera, tracing, or capture failure.",
+      "Do present recording consent as a dedicated, balanced choice and keep the consented recording indicator persistent during intake.",
+      "Do keep clinician queue order, patient-reported evidence, recording availability, and urgent status explicit in text.",
+      "Do preserve prescription as a separate stage with patient context, a clear return path, and one completion action."
+    ],
+    "donts": [
+      "Don't turn the patient flow into a dashboard, dense form, or multi-action control panel.",
+      "Don't use alert oxblood for ordinary validation, warnings, or decoration; reserve it for emergency treatment and active visit recording.",
+      "Don't spend sunlit yellow on passive surfaces that are not directional or active.",
+      "Don't introduce decorative type, low-contrast copy, thin body weights, or tiny labels.",
+      "Don't replace the route-board contrast with glass effects, gradients, or ornamental shadows.",
+      "Don't use circles indiscriminately; preserve them for voice, progress, and status semantics.",
+      "Don't make palm capture, video consent, or AI video analysis appear required for receiving care.",
+      "Don't merge returning-patient lookup and new-patient signup into one ambiguous form or let a new patient reach conversation before signup.",
+      "Don't add a manual palm shutter, hide camera-failure recovery, or suggest that IleraPoint stores the captured palm image.",
+      "Don't merge clinician review and prescribing into one dense surface or imply that the patient-reported record is a diagnosis."
+    ]
+  }
+}

@@ -1,0 +1,92 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color: #12362e;
+  background: #f4f0e5;
+  font-family: "Atkinson Hyperlegible Next Variable", "Segoe UI", sans-serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* { box-sizing: border-box; }
+
+html, body, #root { min-height: 100%; }
+
+body { margin: 0; min-width: 320px; }
+
+button, select, input, textarea { font: inherit; }
+
+.overflow-wrap-anywhere { overflow-wrap: anywhere; }
+
+button, a, select, textarea { -webkit-tap-highlight-color: transparent; }
+
+:focus-visible { outline: 4px solid #0a78ff; outline-offset: 4px; }
+
+.kiosk-shell {
+  min-height: 100dvh;
+  background: #f4f0e5;
+  position: relative;
+  overflow: hidden;
+}
+
+.kiosk-shell::after {
+  content: "";
+  position: fixed;
+  inset: auto -12vw -25vw auto;
+  width: 54vw;
+  height: 54vw;
+  border-radius: 50%;
+  background: #e4da58;
+  opacity: .2;
+  pointer-events: none;
+}
+
+.route-panel {
+  box-shadow: 0 18px 45px rgba(16, 63, 51, .12);
+}
+
+.route-dots span {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 999px;
+  background: #c7c8bc;
+}
+
+.route-dots span.active { background: #f2d533; box-shadow: 0 0 0 7px rgba(242, 213, 51, .18); }
+.route-dots span.done { background: #1d6e59; }
+
+.recording-ring::before,
+.recording-ring::after {
+  content: "";
+  position: absolute;
+  inset: -14px;
+  border: 3px solid rgba(255,255,255,.55);
+  border-radius: 50%;
+  animation: listen 1.8s cubic-bezier(.2,.8,.2,1) infinite;
+}
+.recording-ring::after { animation-delay: .7s; }
+
+@keyframes listen {
+  0% { transform: scale(.82); opacity: 0; }
+  25% { opacity: 1; }
+  100% { transform: scale(1.28); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+}
+
+@media (max-width: 640px) {
+  .welcome-content { gap: 1.25rem; padding-top: 0; padding-bottom: 1rem; }
+  .welcome-copy h1 { font-size: 2.75rem; line-height: .94; }
+  .welcome-copy > p { margin-top: 1rem; font-size: 1.05rem; line-height: 1.55; }
+  .welcome-translations { margin-top: 1rem; gap: .45rem; font-size: .92rem; }
+  .welcome-audio-note { margin-top: 1rem; font-size: .9rem; }
+  .welcome-action { max-width: 250px; padding: 1.25rem; }
+  .welcome-action > span:first-child { width: 4.75rem; height: 4.75rem; }
+  .welcome-action > span:nth-child(2) { margin-top: 1rem; font-size: 1.65rem; }
+  .welcome-action > span:nth-child(3) { margin-top: .15rem; font-size: .9rem; }
+}
