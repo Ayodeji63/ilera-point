@@ -2,15 +2,18 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import multer from "multer";
-import { MAX_INTERVIEW_TURNS, shouldCompleteInterview } from "./interviewPolicy.js";
-import { synthesizeWithSahara } from "./saharaTts.js";
-import { synthesizeWithDeviceVoice } from "./deviceTts.js";
+import { MAX_INTERVIEW_TURNS, selectNextQuestion, shouldCompleteInterview } from "./interviewPolicy.js";
+import { prewarmSaharaSession, synthesizeWithSahara, synthesizeWithSaharaGenerate } from "./saharaTts.js";
 import { extractYorubaText } from "./yorubaOcr.js";
 import { prepareYorubaScreenplay } from "./yorubaScript.js";
 import { mergeWavBuffers } from "./wav.js";
 import { resolveSessionVoiceGender } from "./speechVoices.js";
-import { palmRouter } from "./routes/palm.js";
+import { isTransientSaharaFailure, shouldRetrySahara } from "./speechRetry.js";
+import { attachSpeechStream } from "./saharaStt.js";
+import { transcriptionPollDelay } from "./transcriptionPolicy.js";
+import { faceRouter } from "./routes/face.js";
 import { consultationsRouter } from "./routes/consultations.js";
+import { doctorsRouter } from "./routes/doctors.js";
 import { prescriptionsRouter } from "./routes/prescriptions.js";
 
 const app = express();
@@ -20,7 +23,8 @@ const SUPPORTED_LANGUAGE_CODES = new Set(["en", "yo", "pcm", "ha", "ig"]);
 
 app.use(cors());
 app.use(express.json({ limit: "12mb" }));
-app.use("/api/palm", palmRouter);
+app.use("/api/face", faceRouter);
+app.use("/api/doctors", doctorsRouter);
 app.use("/api/consultations", consultationsRouter);
 app.use("/api/prescriptions", prescriptionsRouter);
 
@@ -116,10 +120,10 @@ app.post("/api/interview", async (req, res) => {
   if (invalidTurn) return res.status(400).json({ error: "Conversation history contains an invalid turn." });
   if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: "GEMINI_API_KEY is not configured." });
   const nextTurn = turns.length;
-  const systemInstruction = `You conduct a brief, warm primary-care intake. Never diagnose and never suggest medication or treatment. Only extract patient-reported information into the supplied record and decide what intake detail is still missing. Preserve clinically meaningful symptom phrases in simple English in record arrays so deterministic safety rules can match them. Put symptoms the patient explicitly denies only in negative_symptoms_checked. Ask in the patient's language where possible (language code: ${languageCode}). You will receive the full conversation history for this visit, not just the latest statement. If the patient's most recent statement revises, corrects, or contradicts something said in an earlier turn, update the relevant field or fields to reflect the correction; do not append a duplicate or conflicting value. You may briefly acknowledge a correction. When more information is needed, next_question must be one warm sentence that briefly acknowledges what the patient said and asks exactly one concise next question, for example: "I hear that — how long has this been going on?" Keep the visit efficient and do not mark the interview complete before two accepted turns. This is accepted turn ${nextTurn}; the safety ceiling is ${MAX_INTERVIEW_TURNS} turns.`;
+  const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
+  const systemInstruction = `You conduct a brief, warm primary-care intake. Never diagnose and never suggest medication or treatment. Only extract patient-reported information into the supplied record and decide what intake detail is still missing. Preserve clinically meaningful symptom phrases in simple English in record arrays so deterministic safety rules can match them. Put symptoms the patient explicitly denies only in negative_symptoms_checked. Ask in the patient's language where possible (language code: ${languageCode}). You receive the full conversation history. Never ask the same clinical question twice. Review question_asked in every earlier turn before choosing the next topic. If the latest answer says the patient did not understand, rephrase the question using simpler words and one concrete example; do not repeat it verbatim. If the latest statement revises or contradicts an earlier answer, replace the old record value instead of appending a conflict. next_question must contain exactly one short question, no longer than 18 words where practical. Ask only about information still listed in still_missing. Do not combine medication name, dose, symptoms, and timing in one question. Do not mark the interview complete before two accepted turns. Turn ${nextTurn} is being processed. ${MAX_INTERVIEW_TURNS} is an internal runaway ceiling, not a target.`;
   const startedAt = performance.now(); const controller = new AbortController(); const deadline = setTimeout(() => controller.abort(), 10000);
   try {
-    const model = process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -131,25 +135,26 @@ app.post("/api/interview", async (req, res) => {
       signal: controller.signal,
     });
     const body = await response.json();
-    if (!response.ok) throw new Error(body.error?.message || "Gemini request failed");
+    if (!response.ok) { const error = new Error(body.error?.message || "Gemini request failed"); error.status = response.status; throw error; }
     const result = JSON.parse(body.candidates?.[0]?.content?.parts?.[0]?.text || "{}");
     const missing = Array.isArray(result.record?.still_missing) ? result.record.still_missing : [];
     result.interview_complete = shouldCompleteInterview(nextTurn, missing);
     if (result.interview_complete) result.next_question = "";
-    else if (!result.next_question?.trim()) result.next_question = nextTurn === 1
-      ? "Thank you — is there anything else about this problem you want the clinician to know?"
-      : "I hear you — what else should the clinician know about this problem?";
+    else result.next_question = selectNextQuestion(result.next_question || "", turns, missing, languageCode);
     const duration = Math.round(performance.now() - startedAt); res.set("Server-Timing", `gemini;dur=${duration}`); console.info("[latency] interview", { durationMs: duration, model, turn: nextTurn });
     res.json(result);
-  } catch (error) { res.status(502).json({ error: error.name === "AbortError" ? "The interview response timed out. Your transcript is preserved; tap send to retry." : `Interview service error: ${error.message}` }); }
+  } catch (error) { res.status(502).json({ error: error.name === "AbortError" ? "The interview response timed out. Your transcript is preserved; tap send to retry." : error.status === 429 ? "The interview service is temporarily busy. Please wait a moment and tap send again." : `Interview service error: ${error.message}` }); }
   finally { clearTimeout(deadline); }
 });
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 async function pollTranscription(fileId, apiKey, signal) {
-  for (let attempt = 0; attempt < 12; attempt += 1) {
-    await wait(attempt === 0 ? 900 : 1050);
+  // Sahara's file transcription regularly needs more than 15 seconds. This is
+  // now the fallback behind live streaming, so give it room to actually finish
+  // rather than discarding an answer the patient already gave.
+  for (let attempt = 0; attempt < 18; attempt += 1) {
+    await wait(transcriptionPollDelay(attempt));
     const response = await fetch(`https://infer.voice.intron.io/file/v1/status/${encodeURIComponent(fileId)}`, { headers: { Authorization: `Bearer ${apiKey}` }, signal });
     const body = await response.json();
     if (response.status === 429 || /rate.?limit/i.test(body.message || body.error || "")) {
@@ -161,7 +166,7 @@ async function pollTranscription(fileId, apiKey, signal) {
     if (body.data?.processing_status === "FILE_TRANSCRIBED") return body.data;
     if (body.data?.processing_status === "FILE_PROCESSING_FAILED") throw new Error("Transcription processing failed");
   }
-  throw new Error("Transcription took longer than 12 seconds. Please try again or type your answer.");
+  throw new Error("Transcription took longer than 20 seconds. Please try again or type your answer.");
 }
 
 app.post("/api/speech/transcribe", upload.single("audio"), async (req, res) => {
@@ -172,7 +177,7 @@ app.post("/api/speech/transcribe", upload.single("audio"), async (req, res) => {
   if (!SUPPORTED_LANGUAGE_CODES.has(languageCode)) return res.status(400).json({ error: `Unsupported language code: ${languageCode}.` });
   if (!["standard", "general", "raw"].includes(diagnosticMode)) return res.status(400).json({ error: "Unsupported transcription diagnostic mode." });
   if (languageCode !== "ha" && diagnosticMode !== "standard") return res.status(400).json({ error: "Diagnostic transcription modes are restricted to Hausa testing." });
-  const startedAt = performance.now(); const controller = new AbortController(); const deadline = setTimeout(() => controller.abort(), 15000);
+  const startedAt = performance.now(); const controller = new AbortController(); const deadline = setTimeout(() => controller.abort(), 24000);
   const cancelOnDisconnect = () => { if (!res.writableEnded) controller.abort(); };
   req.once("aborted", cancelOnDisconnect); res.once("close", cancelOnDisconnect);
   try {
@@ -196,53 +201,40 @@ app.post("/api/speech/transcribe", upload.single("audio"), async (req, res) => {
 
 const ttsCache = new Map();
 const ttsInFlight = new Map();
-const SAHARA_COOLDOWN_MS = 60000;
-let saharaUnavailableUntil = 0;
-
 async function synthesizeWithRetry(options) {
   let lastError;
   for (let attempt = 1; attempt <= 2; attempt += 1) {
     try {
-      return await synthesizeWithSahara({ ...options, readyTimeoutMs: options.readyTimeoutMs ?? 14000 });
+      return await synthesizeWithSahara({ ...options, readyTimeoutMs: options.readyTimeoutMs ?? 14000, useWarmPool: attempt === 1 });
     } catch (error) {
-      lastError = error;
-      if (options.signal.aborted) throw error;
-      const nonRetryable = /(authentication|permission|quota|credit|invalid|unsupported|chunk.*size)/i.test(error.message);
-      const reconnectable = /(socket hang up|ECONNRESET|EPIPE|ETIMEDOUT|connection closed|opening handshake|unexpected server response|invalid WebSocket frame|speech session timed out)/i.test(error.message);
-      if (nonRetryable || !reconnectable || attempt === 2) throw error;
-      console.warn("[Sahara TTS] transient session failure; reconnecting", { attempt, message: error.message });
+      const failure = error instanceof Error ? error : new Error(String(error || "Sahara speech generation failed."));
+      lastError = failure;
+      if (options.signal.aborted) throw failure;
+      if (!shouldRetrySahara(failure.message, attempt)) {
+        // A stream failure we cannot usefully retry still has the HTTP endpoint left.
+        if (isTransientSaharaFailure(failure.message)) break;
+        throw failure;
+      }
+      console.warn("[Sahara TTS] transient session failure; reconnecting", { attempt, message: failure.message });
       await wait(attempt * 300);
+    }
+  }
+  console.warn("[Sahara TTS] streaming unavailable; using Sahara generate endpoint", { message: lastError?.message });
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      return await synthesizeWithSaharaGenerate(options);
+    } catch (error) {
+      if (attempt === 2 || options.signal.aborted) throw error;
+      console.warn("[Sahara TTS] generate endpoint failed; retrying", { message: error?.message });
+      await wait(500);
     }
   }
   throw lastError;
 }
 
-async function synthesizeResiliently(options) {
-  if (Date.now() < saharaUnavailableUntil) {
-    return { audio: await synthesizeWithDeviceVoice(options.chunks.join(" "), options.signal), provider: "device" };
-  }
-  const saharaController = new AbortController();
-  const stopSahara = () => saharaController.abort();
-  options.signal.addEventListener("abort", stopSahara, { once: true });
-  const saharaSignal = AbortSignal.any([saharaController.signal, AbortSignal.timeout(6500)]);
-  try {
-    const audio = await synthesizeWithRetry({ ...options, signal: saharaSignal });
-    saharaUnavailableUntil = 0;
-    return { audio, provider: "sahara" };
-  } catch (error) {
-    if (options.signal.aborted) throw error;
-    saharaUnavailableUntil = Date.now() + SAHARA_COOLDOWN_MS;
-    console.warn("[Sahara TTS] unavailable; using kiosk device voice", { message: error.message });
-    return { audio: await synthesizeWithDeviceVoice(options.chunks.join(" "), options.signal), provider: "device" };
-  } finally {
-    saharaController.abort();
-    options.signal.removeEventListener("abort", stopSahara);
-  }
-}
-
 app.post("/api/speech/synthesize", async (req, res) => {
   if (!process.env.SAHARA_API_KEY) return res.status(503).json({ error: "SAHARA_API_KEY is not configured." });
-  const { chunks, pausesMs = [], voiceGenders = [], voiceAccent, voiceGender, language = "en", requireSahara = false, mode = "kiosk" } = req.body;
+  const { chunks, pausesMs = [], voiceGenders = [], voiceAccent, voiceGender, language = "en", requireSahara = false, mode = "kiosk", progressive = false } = req.body;
   if (!Array.isArray(chunks) || !chunks.length) return res.status(400).json({ error: "Text to speak is required." });
   if (chunks.some((chunk) => typeof chunk !== "string" || chunk.length < 10 || chunk.length > 100)) return res.status(400).json({ error: "Each speech chunk must contain 10 to 100 characters." });
   if (chunks.join(" ").length > 4096) return res.status(400).json({ error: "Speech text cannot exceed 4096 characters." });
@@ -250,12 +242,19 @@ app.post("/api/speech/synthesize", async (req, res) => {
   if (!Array.isArray(voiceGenders) || (voiceGenders.length && voiceGenders.length !== chunks.length) || voiceGenders.some((gender) => !["male", "female"].includes(gender))) return res.status(400).json({ error: "Character voices must match the speech chunks." });
   if (!voiceAccent || !["male", "female"].includes(voiceGender) || !SUPPORTED_LANGUAGE_CODES.has(language)) return res.status(400).json({ error: "The requested speech voice is invalid." });
   if (typeof requireSahara !== "boolean") return res.status(400).json({ error: "The Sahara requirement must be a boolean." });
+  if (typeof progressive !== "boolean") return res.status(400).json({ error: "The progressive flag must be a boolean." });
   if (!["kiosk", "document"].includes(mode)) return res.status(400).json({ error: "The requested speech mode is invalid." });
-  const documentMode = mode === "document" && requireSahara;
-  const providerDeadlineMs = documentMode ? 90000 : 18000;
-  const readyTimeoutMs = documentMode ? 75000 : 14000;
+  const documentMode = mode === "document";
+  const providerDeadlineMs = documentMode ? 90000 : 25000;
+  const readyTimeoutMs = documentMode ? 75000 : 20000;
   const cacheKey = JSON.stringify([chunks, pausesMs, voiceGenders, voiceAccent, voiceGender, language, requireSahara, mode]); const cached = ttsCache.get(cacheKey);
-  if (cached) return res.set("X-Ilera-TTS-Cache", "HIT").set("X-Ilera-Speech-Provider", cached.provider).type("audio/wav").send(cached.audio);
+  if (cached && !progressive) return res.set("X-Ilera-TTS-Cache", "HIT").set("X-Ilera-Speech-Provider", cached.provider).type("audio/wav").send(cached.audio);
+  if (cached) {
+    // Already merged, so there is nothing left to stream: hand it over as one part.
+    res.set("X-Ilera-TTS-Cache", "HIT").set("X-Ilera-Speech-Provider", cached.provider).type("application/x-ndjson");
+    res.write(`${JSON.stringify({ index: 0, pauseMs: 0, audioBase64: cached.audio.toString("base64") })}\n`);
+    return res.end();
+  }
 
   const requestController = new AbortController();
   const providerDeadline = AbortSignal.timeout(providerDeadlineMs);
@@ -263,13 +262,47 @@ app.post("/api/speech/synthesize", async (req, res) => {
   const cancelOnDisconnect = () => { if (!res.writableEnded) requestController.abort(); };
   req.once("aborted", cancelOnDisconnect); res.once("close", cancelOnDisconnect);
   const startedAt = performance.now();
+
+  // Progressive mode sends each chunk of the sentence as Sahara finishes it, so
+  // the kiosk starts speaking after the first chunk instead of the whole line.
+  if (progressive) {
+    const sent = new Set();
+    const write = (payload) => res.write(`${JSON.stringify(payload)}\n`);
+    try {
+      const audioChunks = await synthesizeWithRetry({
+        chunks, pausesMs, voiceAccent, language, readyTimeoutMs, returnChunks: true,
+        voiceGender: resolveSessionVoiceGender(voiceGenders, voiceGender),
+        apiKey: process.env.SAHARA_API_KEY, signal: requestSignal,
+        onChunk: (index, audio) => {
+          // A retried attempt restarts at chunk 0; the client must see each index once.
+          if (sent.has(index)) return;
+          sent.add(index);
+          if (!res.headersSent) res.set("X-Ilera-Speech-Provider", "sahara").type("application/x-ndjson");
+          write({ index, pauseMs: pausesMs[index] ?? 0, audioBase64: audio.toString("base64") });
+        },
+      });
+      if (ttsCache.size >= 20) ttsCache.delete(ttsCache.keys().next().value);
+      ttsCache.set(cacheKey, { audio: mergeWavBuffers(audioChunks, pausesMs), provider: "sahara" });
+      console.info("[latency] speech", { durationMs: Math.round(performance.now() - startedAt), language, provider: "sahara", progressive: true, chunks: chunks.length });
+      return res.end();
+    } catch (error) {
+      if (requestController.signal.aborted) return;
+      const message = providerDeadline.aborted ? `Sahara speech generation took longer than ${providerDeadlineMs / 1000} seconds. Please try again.` : (error?.message || "Sahara speech generation failed. Please try again.");
+      console.error(`[Sahara TTS] ${message}`);
+      // Nothing streamed yet means the client can still fall back cleanly.
+      if (!sent.size) return res.status(502).json({ error: message });
+      write({ error: message });
+      return res.end();
+    }
+  }
+
   try {
     let audioPromise = ttsInFlight.get(cacheKey);
     if (!audioPromise) {
       const options = { chunks, pausesMs, voiceAccent, voiceGender, language, apiKey: process.env.SAHARA_API_KEY, signal: requestSignal, readyTimeoutMs };
       const castGenders = voiceGenders.length ? [...new Set(voiceGenders)] : [];
       const singleVoiceOptions = { ...options, voiceGender: resolveSessionVoiceGender(voiceGenders, voiceGender) };
-      audioPromise = requireSahara && castGenders.length > 1
+      audioPromise = castGenders.length > 1
         ? Promise.all(castGenders.map(async (gender) => {
           const indexes = voiceGenders.flatMap((value, index) => value === gender ? [index] : []);
           const audioChunks = await synthesizeWithRetry({ ...options, chunks: indexes.map((index) => chunks[index]), pausesMs: [], voiceGender: gender, returnChunks: true });
@@ -279,9 +312,7 @@ app.post("/api/speech/synthesize", async (req, res) => {
           groups.forEach(({ indexes, audioChunks }) => indexes.forEach((sourceIndex, groupIndex) => { ordered[sourceIndex] = audioChunks[groupIndex]; }));
           return { audio: mergeWavBuffers(ordered, pausesMs), provider: "sahara" };
         })
-        : requireSahara
-          ? synthesizeWithRetry(singleVoiceOptions).then((audio) => ({ audio, provider: "sahara" }))
-          : synthesizeResiliently(options);
+        : synthesizeWithRetry(singleVoiceOptions).then((audio) => ({ audio, provider: "sahara" }));
       ttsInFlight.set(cacheKey, audioPromise);
     }
     const { audio, provider } = await audioPromise;
@@ -303,8 +334,19 @@ app.post("/api/speech/synthesize", async (req, res) => {
 });
 
 app.get("/api/health", (_req, res) => {
-  const missing = [!process.env.SAHARA_API_KEY && "SAHARA_API_KEY", !process.env.GEMINI_API_KEY && "GEMINI_API_KEY", !process.env.TENCENT_PALM_API_KEY && "TENCENT_PALM_API_KEY", !process.env.SUPABASE_URL && "SUPABASE_URL", !process.env.SUPABASE_SERVICE_ROLE_KEY && "SUPABASE_SERVICE_ROLE_KEY"].filter(Boolean);
-  res.status(missing.length ? 503 : 200).json({ ok: missing.length === 0, speech: "sahara", interview: "gemini", palm: "tencent", persistence: "supabase", missing });
+  const missing = [!process.env.SAHARA_API_KEY && "SAHARA_API_KEY", !process.env.GEMINI_API_KEY && "GEMINI_API_KEY", !process.env.TENCENT_SECRET_ID && "TENCENT_SECRET_ID", !process.env.TENCENT_SECRET_KEY && "TENCENT_SECRET_KEY", !process.env.SUPABASE_URL && "SUPABASE_URL", !process.env.SUPABASE_SERVICE_ROLE_KEY && "SUPABASE_SERVICE_ROLE_KEY"].filter(Boolean);
+  res.status(missing.length ? 503 : 200).json({ ok: missing.length === 0, speech: "sahara", interview: "gemini", identity: "tencent-face", persistence: "supabase", missing });
 });
 
-app.listen(port, () => console.log(`IleraPoint API listening on http://localhost:${port}`));
+const server = app.listen(port, () => {
+  console.log(`IleraPoint API listening on http://localhost:${port}`);
+  if (process.env.SAHARA_API_KEY) {
+    // One warm session only: Sahara's stream endpoint allows just a few
+    // connections per minute, and an unused warm socket spends one of them.
+    prewarmSaharaSession({ voiceAccent: "yoruba", voiceGender: "female", language: "en", apiKey: process.env.SAHARA_API_KEY });
+  }
+});
+
+// Live transcription: the browser streams PCM while the patient talks, so the
+// transcript is being built before they finish instead of after.
+attachSpeechStream(server, { apiKey: process.env.SAHARA_API_KEY, supportedLanguages: SUPPORTED_LANGUAGE_CODES });

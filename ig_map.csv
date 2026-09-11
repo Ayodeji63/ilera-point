@@ -1,0 +1,26 @@
+file,audio_id,category,score,status
+1. I have malaria (M nwere ịba).m4a,ig_01,Malaria/Fever,1.0,ok
+"10. "" (All my joints are aching me, my joints are aching terribly.).m4a",ig_10,Joint pain,1.0,ok
+11. I have back pain.m4a,ig_11,Back pain,1.0,ok
+12. I am six months pregnant.m4a,ig_12,Pregnancy,1.0,ok
+13. I have eyes pain.m4a,ig_13,Eye pain,1.0,ok
+14. My son has high temperature. His body is really hot..m4a,ig_14,Pediatric fever,1.0,ok
+15. It burns me if I want to urinate.m4a,ig_15,Painful urination,1.0,ok
+16. My eyes are spinning- I am dizzy.m4a,ig_16,Dizziness,1.0,ok
+17. My teeth is really aching me.m4a,ig_17,Toothache,1.0,ok
+18. I have skin rash.m4a,ig_18,Skin rash,1.0,ok
+19. I have sore throat.m4a,ig_19,Sore throat,1.0,ok
+2. I have severe headache (.m4a,ig_02,Headache/Migraine,1.0,ok
+20. I am completely tired.m4a,ig_20,Fatigue,1.0,ok
+"21. I drank malaria medicine in the morning, but the symptoms are still there.).m4a",ig_21,Medication history,1.0,ok
+22. I have ear pain.m4a,ig_22,Ear pain,1.0,ok
+23. I have a big injury.m4a,ig_23,Minor injury,1.0,ok
+"24. This thing started since three days ago, I thought it would go away.).m4a",ig_24,Duration,1.0,ok
+"25. They said that I have typhoid, I am also having stomach upset every time.).m4a",ig_25,Typhoid,1.0,ok
+3. I have stomachache.m4a,ig_03,Stomach pain,1.0,ok
+4. I have been committing since yesterday.m4a,ig_04,Diarrhea/Vomiting,1.0,ok
+5. I have catarrh and cough.m4a,ig_05,Cough/Catarrh,1.0,ok
+6. My chest is aching me seriously.m4a,ig_06,Chest pain,1.0,ok
+"7. I am bleeding heavily, the bleeding just won't stop.).m4a",ig_07,Bleeding,1.0,ok
+"8. I cannot breathe well, I am gasping for air..m4a",ig_08,Breathing,1.0,ok
+"9. (This child is convulsing, please attend to him fast before it's too late!).m4a",ig_09,Seizure,1.0,ok

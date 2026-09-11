@@ -1,0 +1,26 @@
+file,audio_id,category,score,status
+Ankle Sprain .wav,yo_23,Sprain,0.55,LOW CONFIDENCE - check
+Back Pain.wav,yo_11,Back pain,1.0,ok
+Cough or Catarrh.wav,yo_05,Cough/Catarrh,1.0,ok
+Diarrhea or Vomiting.wav,yo_04,Diarrhea/Vomiting,1.0,ok
+Dizziness.wav,yo_16,Dizziness,1.0,ok
+Duration .wav,yo_24,Duration/Onset,0.568,LOW CONFIDENCE - check
+Ear Pain .wav,yo_22,Ear pain,1.0,ok
+Emergency - Bleeding.wav,yo_07,Bleeding,0.535,LOW CONFIDENCE - check
+Emergency - Breathing .wav,yo_08,Breathing,0.543,LOW CONFIDENCE - check
+Emergency - Chest Pain.wav,yo_06,Chest pain,0.667,ok
+Emergency - Seizure .wav,yo_09,Seizure,0.525,LOW CONFIDENCE - check
+Eye Redness.wav,yo_13,Eye redness,1.0,ok
+Fatigue or Weakness .wav,yo_20,Fatigue/Weakness,1.0,ok
+Headache or Migraine.wav,yo_02,Headache/Migraine,1.0,ok
+Joint Pain .wav,yo_10,Joint pain,1.0,ok
+Malaria or Fever.wav,yo_01,Malaria/Fever,1.0,ok
+Medication History .wav,yo_21,Medication history,1.0,ok
+Painful Urination.wav,yo_15,Painful urination,1.0,ok
+Pediatric Fever .wav,yo_14,Pediatric Fever,1.0,ok
+Pregnancy.wav,yo_12,Pregnancy,1.0,ok
+Skin Rash.wav,yo_18,Skin rash,1.0,ok
+Sore Throat .wav,yo_19,Sore throat,1.0,ok
+Stomach Pain .wav,yo_03,Stomach pain,1.0,ok
+Toothache.wav,yo_17,Toothache,1.0,ok
+Typhoid .wav,yo_25,Typhoid,1.0,ok

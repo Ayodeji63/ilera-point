@@ -193,7 +193,7 @@ components:
 
 **Creative North Star: "The Care Route Board"**
 
-IleraPoint makes a clinical intake feel like following a clear, human route rather than completing a form. Its visual world borrows the certainty of wayfinding: one dominant instruction, visible route choices, seven safety-ceiling stops, oversized directional controls, and high-contrast panels that can be read at kiosk distance. The same board language now spans returning-patient identification, new-patient signup and palm enrollment, informed recording consent, voice intake, the public Yoruba image-to-speech utility, clinician review, and a deliberately separate prescription stage.
+IleraPoint makes a clinical intake feel like following a clear, human route rather than completing a form. Its visual world borrows the certainty of wayfinding: one dominant instruction, visible route choices, plain-language progress, oversized directional controls, and high-contrast panels that can be read at kiosk distance. The same board language now spans returning-patient identification, new-patient signup and palm enrollment, informed recording consent, voice intake, the public Yoruba image-to-speech utility, clinician review, and a deliberately separate prescription stage.
 
 The atmosphere is calm but not timid. Deep clinic green provides institutional trust, sunlit yellow identifies the next physical action, and chalk-toned backgrounds keep the environment warm and public-facing. Strong type, sparse choices, and grounded panels prioritize low-literacy clarity without making the experience childish.
 
@@ -347,7 +347,7 @@ The header is a simple brand-and-utility band: a 44px rounded-square shield tile
 
 ### Route Progress
 
-Seven 14px circular stops show the safety ceiling rather than implying a required seven-question journey. The active stop is sunlit yellow with a 7px translucent halo; completed stops are route green; upcoming stops are muted gray-green. Pair the dots with the exact “Question n · up to 7” label so color is never the only cue and natural early completion stays clear.
+Interview progress is content-based rather than a fixed row of question stops. Show `Question n` alongside `n answers saved` and the phrase “gathering the details your clinician needs.” Do not display a required total: the interview ends when the clinical record is complete and can continue beyond seven when important information is still missing. While answering, the microphone is a live status indicator rather than a button; copy must clearly distinguish waiting for speech, hearing speech, detecting the finishing pause, and processing.
 
 ### Palm Onboarding & Manual Recovery
 

@@ -1,0 +1,26 @@
+file,audio_id,category,score,status
+1.aac,ha_01,Malaria/Fever,1.0,ok
+10.aac,ha_10,Joint pain,1.0,ok
+11.aac,ha_11,Back pain,1.0,ok
+12.aac,ha_12,Pregnancy,1.0,ok
+13.aac,ha_13,Eye redness,1.0,ok
+14.aac,ha_14,Pediatric fever,1.0,ok
+15.aac,ha_15,Painful urination,1.0,ok
+16.aac,ha_16,Dizziness,1.0,ok
+17.aac,ha_17,Toothache,1.0,ok
+18.aac,ha_18,Skin rash,1.0,ok
+19.aac,ha_19,Sore throat,1.0,ok
+2.aac,ha_02,Headache/Migraine,1.0,ok
+20.aac,ha_20,Fatigue,1.0,ok
+21.aac,ha_21,Medication history,1.0,ok
+22.aac,ha_22,Ear pain,1.0,ok
+23.aac,ha_23,Sprain,1.0,ok
+24.aac,ha_24,Duration,1.0,ok
+25.aac,ha_25,Typhoid,1.0,ok
+3.aac,ha_03,Stomach pain,1.0,ok
+4.aac,ha_04,Diarrhea,1.0,ok
+5.aac,ha_05,Cough/Catarrh,1.0,ok
+6.aac,ha_06,Chest pain,1.0,ok
+7.aac,ha_07,Bleeding,1.0,ok
+8.aac,ha_08,Breathing,1.0,ok
+9.aac,ha_09,Loss of consciousness,1.0,ok

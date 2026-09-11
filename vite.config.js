@@ -7,6 +7,7 @@ export default defineConfig({
     host: true,
     port: 5173,
     strictPort: true,
-    proxy: { "/api": "http://localhost:8787" },
+    // ws: the live transcription socket at /api/speech/stream shares this prefix.
+    proxy: { "/api": { target: "http://localhost:8787", ws: true } },
   },
 });

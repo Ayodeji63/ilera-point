@@ -1,0 +1,26 @@
+file,audio_id,category,score,status
+01_paludisme_fievre.wav,fr_01,Fever/Malaria,1.0,ok
+02_mal_de_tete.wav,fr_02,Headache,1.0,ok
+03_maux_de_ventre.wav,fr_03,Stomachache,1.0,ok
+04_diarrhee.wav,fr_04,Diarrhea,1.0,ok
+05_vomissements.wav,fr_05,Vomiting,1.0,ok
+06_toux.wav,fr_06,Cough,1.0,ok
+07_rhume.wav,fr_07,Cold,1.0,ok
+08_douleur_thoracique.wav,fr_08,Chest pain,1.0,ok
+09_respiration.wav,fr_09,Breathing,1.0,ok
+10_saignement.wav,fr_10,Bleeding,1.0,ok
+11_douleur_articulaire.wav,fr_11,Joint pain,1.0,ok
+12_mal_de_dos.wav,fr_12,Back pain,1.0,ok
+13_grossesse.wav,fr_13,Pregnancy,1.0,ok
+14_rougeur_oculaire.wav,fr_14,Eye issue,1.0,ok
+15_fievre_pediatrique.wav,fr_15,Pediatric fever,1.0,ok
+16_miction_douloureuse.wav,fr_16,Painful urination,1.0,ok
+17_vertiges.wav,fr_17,Dizziness,1.0,ok
+18_mal_de_dents.wav,fr_18,Toothache,1.0,ok
+19_eruption_cutanee.wav,fr_19,Rash,1.0,ok
+20_mal_de_gorge.wav,fr_20,Sore throat,1.0,ok
+21_fatigue_faiblesse.wav,fr_21,Fatigue,1.0,ok
+22_historique_medical.wav,fr_22,Medical history,1.0,ok
+23_douleur_oreilles.wav,fr_23,Earache,1.0,ok
+24_blessure_entorse.wav,fr_24,Injury,1.0,ok
+25_palpitations.wav,fr_25,Palpitations,1.0,ok

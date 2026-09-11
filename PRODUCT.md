@@ -30,10 +30,11 @@ The product is used on a shared full-screen kiosk in a clinic or community healt
 
 ## Capabilities and Constraints
 
-- Browser microphone capture and short-utterance transcription.
-- Sahara is the primary speech provider and its credentials remain server-side; FFmpeg's local device voice produces a fallback WAV when Sahara stalls.
+- Browser microphone capture, local voice-activity detection, silence-based automatic turn completion, and short-utterance transcription.
+- Sahara is the only speech playback provider and its credentials remain server-side; failed generation is disclosed instead of substituting a lower-quality device voice.
 - One Gemini structured-output call per patient turn for extraction and the next question.
-- Natural completion when required intake information is present, with a seven-turn safety ceiling.
+- Natural completion when required intake information is present, with no fixed seven-question target and a 12-turn internal runaway ceiling.
+- History-aware duplicate-question rejection and concise language-matched fallback questions when the model repeats or combines prompts.
 - Full visit turn history is supplied to Gemini so later statements can revise earlier facts.
 - Deterministic rollback of the most recent answer and direct editing of summary fields.
 - Deterministic emergency detection for difficulty breathing, chest pain, loss of consciousness, severe bleeding, and seizure.
@@ -43,7 +44,7 @@ The product is used on a shared full-screen kiosk in a clinic or community healt
 - API credentials remain server-side.
 - Tencent PalmAI RGB register, search, and compare calls are proxied through Express; biometric images are never stored.
 - Manual name/phone lookup is always available when palm capture or matching fails.
-- Continuous 640×480 audio/video recording is opt-in and stored privately for human clinician review only.
+- Continuous 640×480 audio/video recording is opt-in, normalized to `video/webm`, and stored privately for human clinician review only.
 - Supabase persists patients, consultations, doctors, prescriptions, and corrected turn history.
 - Doctors authenticate with email/password, review an oldest-first queue, approve or flag cases, and issue plain-text prescriptions.
 - No AI video analysis, live video calls, drug interaction checks, pharmacy inventory, diagnosis, autonomous prescribing, or dispensing.

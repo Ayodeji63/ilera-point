@@ -1,7 +1,10 @@
 import WebSocket from "ws";
 import { mergeWavBuffers } from "./wav.js";
+import { hasStreamSlot, noteStreamRateLimited, reserveStreamSlot, streamBudgetDelaySeconds, streamConnectionLimit } from "./saharaStreamBudget.js";
 
 const SAHARA_TTS_STREAM_URL = "wss://infer.voice.intron.io/tts/v1/stream";
+const DEFAULT_POOL_SIZE = 1;
+const WARM_SESSION_IDLE_MS = 30000;
 const TERMINAL_TYPES = new Set([
   "ERROR", "INPUT_ERROR", "AUTHENTICATION_ERROR", "RESOURCE_EXHAUSTED",
   "QUOTA_EXCEEDED", "SESSION_TIME_LIMIT_EXCEEDED", "INSUFFICIENT_TEXT_ACTIVITY",
@@ -13,10 +16,29 @@ const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, mill
 export function saharaSocketOptions(apiKey) {
   return {
     headers: { Authorization: `Bearer ${apiKey}` },
-    // Sahara emits malformed fragmented frames when compression is negotiated.
+    // Nothing to gain from compressing JSON control frames, and offering it only
+    // widens the set of frames Sahara can send us.
     perMessageDeflate: false,
     handshakeTimeout: 10000,
   };
+}
+
+// Sahara answers a rate-limited stream upgrade with a raw HTTP 429 written onto
+// the already-upgraded socket, so `ws` reports it as a malformed frame rather
+// than as a close code. See saharaStreamBudget.js for the captured response.
+const RATE_LIMITED_FRAME = /invalid websocket frame/i;
+
+export function streamLimitError() {
+  const delay = streamBudgetDelaySeconds();
+  const retryHint = delay ? ` Retry in about ${delay} seconds.` : "";
+  return new Error(`Sahara stream connection limit reached (${streamConnectionLimit()} per minute).${retryHint}`);
+}
+
+export function describeSessionFailure(error) {
+  const message = error?.message || "";
+  if (!RATE_LIMITED_FRAME.test(message)) return error instanceof Error ? error : new Error(message || "Sahara TTS session failed.");
+  noteStreamRateLimited();
+  return streamLimitError();
 }
 
 export function saharaSocketUrl({ voiceAccent, voiceGender, language }) {
@@ -29,12 +51,13 @@ export function saharaSocketUrl({ voiceAccent, voiceGender, language }) {
   return `${SAHARA_TTS_STREAM_URL}?${params}`;
 }
 
-function createMessageQueue(ws) {
+function createMessageQueue(ws, onFailure = () => {}) {
   const queued = [];
   const waiting = [];
   let terminalError = null;
   const fail = (error) => {
     terminalError = error instanceof Error ? error : new Error(String(error || "Sahara TTS session failed"));
+    onFailure(terminalError);
     while (waiting.length) {
       const entry = waiting.shift();
       clearTimeout(entry.timer);
@@ -55,9 +78,9 @@ function createMessageQueue(ws) {
   });
   ws.on("error", fail);
   ws.on("close", (code, reason) => {
-    if (code !== 1000 && waiting.length) fail(new Error(reason.toString() || `Sahara TTS connection closed (${code}).`));
+    fail(new Error(reason.toString() || `Sahara TTS connection closed (${code}).`));
   });
-  return (predicate, timeout = 15000) => {
+  const nextMessage = (predicate, timeout = 15000) => {
     if (terminalError) return Promise.reject(terminalError);
     const match = queued.findIndex(predicate);
     if (match >= 0) return Promise.resolve(queued.splice(match, 1)[0]);
@@ -71,23 +94,155 @@ function createMessageQueue(ws) {
       waiting.push(entry);
     });
   };
+  nextMessage.failure = () => terminalError;
+  return nextMessage;
 }
 
-export async function synthesizeWithSahara({ chunks, pausesMs = [], voiceAccent, voiceGender, language, apiKey, signal, readyTimeoutMs = 14000, returnChunks = false }) {
+const sessionPools = new Map();
+
+export function saharaPoolKey({ voiceAccent, voiceGender, language }) {
+  return JSON.stringify([voiceAccent, voiceGender, language]);
+}
+
+function configuredPoolSize() {
+  const value = Number(process.env.SAHARA_TTS_POOL_SIZE || DEFAULT_POOL_SIZE);
+  return Number.isInteger(value) ? Math.min(3, Math.max(1, value)) : DEFAULT_POOL_SIZE;
+}
+
+async function openSaharaSession({ voiceAccent, voiceGender, language, apiKey, keepInReserve = 0 }) {
+  if (!reserveStreamSlot({ keepInReserve })) throw streamLimitError();
   const ws = new WebSocket(saharaSocketUrl({ voiceAccent, voiceGender, language }), saharaSocketOptions(apiKey));
-  const abort = () => ws.terminate();
-  signal?.addEventListener("abort", abort, { once: true });
-  const nextMessage = createMessageQueue(ws);
+  const session = { ws, nextMessage: null, failed: false, idleTimer: null };
+  session.nextMessage = createMessageQueue(ws, () => { session.failed = true; });
   try {
     await new Promise((resolve, reject) => { ws.once("open", resolve); ws.once("error", reject); });
-    await nextMessage((message) => message.message_type === "SESSION_CREATED", 10000);
+    await session.nextMessage((message) => message.message_type === "SESSION_CREATED", 10000);
+    return session;
+  } catch (error) {
+    if (ws.readyState === WebSocket.OPEN) ws.close();
+    else if (ws.readyState === WebSocket.CONNECTING) ws.terminate();
+    throw describeSessionFailure(error);
+  }
+}
 
-    // Submit every chunk first so Sahara can synthesize them concurrently.
-    for (let index = 0; index < chunks.length; index += 1) {
-      const id = index + 1;
-      ws.send(JSON.stringify({ message_type: "INPUT_TEXT_CHUNK", text: chunks[index], ack_id: id }));
-      await nextMessage((message) => message.message_type === "TEXT_CHUNK_ACK" && (message.ack_id === id || message.chunck_id === id || message.chunk_id === id));
-    }
+function closeSession(session) {
+  clearTimeout(session?.idleTimer);
+  if (session?.ws.readyState === WebSocket.OPEN) session.ws.close();
+  else if (session?.ws.readyState === WebSocket.CONNECTING) session.ws.terminate();
+}
+
+function fillSessionPool(options) {
+  const key = saharaPoolKey(options);
+  const pool = sessionPools.get(key) || [];
+  sessionPools.set(key, pool);
+  while (pool.length < configuredPoolSize()) {
+    // A warm session is only worth a slot while a real request could still get one.
+    if (!hasStreamSlot({ keepInReserve: 1 })) return;
+    const entry = { promise: null, ready: false };
+    entry.promise = openSaharaSession({ ...options, keepInReserve: 1 })
+      .then((session) => {
+        entry.ready = true;
+        session.idleTimer = setTimeout(() => {
+          const index = pool.indexOf(entry);
+          if (index >= 0) pool.splice(index, 1);
+          closeSession(session);
+        }, WARM_SESSION_IDLE_MS);
+        return session;
+      })
+      .catch(() => {
+        const index = pool.indexOf(entry);
+        if (index >= 0) pool.splice(index, 1);
+        return null;
+      });
+    pool.push(entry);
+  }
+}
+
+async function acquireSession(options) {
+  const key = saharaPoolKey(options);
+  fillSessionPool(options);
+  const pool = sessionPools.get(key);
+  const entry = pool.shift();
+  // The pool stays empty while the connection budget is spent; open directly so
+  // the caller gets the real limit error instead of a missing warm session.
+  if (!entry) return openSaharaSession(options);
+  const wasWarm = entry.ready;
+  fillSessionPool(options);
+  const session = await entry.promise;
+  if (!session || session.failed || session.ws.readyState !== WebSocket.OPEN) {
+    closeSession(session);
+    return openSaharaSession(options);
+  }
+  clearTimeout(session.idleTimer);
+  session.fromWarmPool = wasWarm;
+  return session;
+}
+
+export function prewarmSaharaSession(options) {
+  if (!options.apiKey) return;
+  fillSessionPool(options);
+}
+
+export function closeSaharaSessionPools() {
+  for (const pool of sessionPools.values()) {
+    for (const entry of pool) entry.promise.then(closeSession);
+  }
+  sessionPools.clear();
+}
+
+export function normalizeSaharaAudioUrl(value) {
+  const url = new URL(value, "https://infer.voice.intron.io");
+  const trustedHost = url.hostname === "infer.voice.intron.io" || url.hostname.endsWith(".amazonaws.com");
+  if (!trustedHost || !["http:", "https:"].includes(url.protocol)) throw new Error("Sahara returned an invalid audio URL.");
+  if (url.protocol === "http:") url.protocol = "https:";
+  return url;
+}
+
+export async function synthesizeWithSaharaGenerate({ chunks, pausesMs = [], voiceAccent, voiceGender, language, apiKey, signal, returnChunks = false, onChunk }) {
+  const audioBuffers = await Promise.all(chunks.map(async (text, index) => {
+    const response = await fetch("https://infer.voice.intron.io/tts/v1/generate", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ text, voice_accent: voiceAccent, voice_gender: voiceGender, voice_language: language, output_audio_format: "wav" }),
+      signal,
+    });
+    const body = await response.json();
+    if (!response.ok || !body.data?.audio_path) throw new Error(body.message || "Sahara fallback speech generation failed.");
+    const audioUrl = normalizeSaharaAudioUrl(body.data.audio_path);
+    const audioResponse = await fetch(audioUrl, { signal });
+    if (!audioResponse.ok) throw new Error("Sahara generated speech but the audio could not be downloaded.");
+    const audio = Buffer.from(await audioResponse.arrayBuffer());
+    // Chunks are generated in parallel, so hand each one over the moment it
+    // lands: the caller can start playing while the rest are still rendering.
+    onChunk?.(index, audio);
+    return audio;
+  }));
+  return returnChunks ? audioBuffers : mergeWavBuffers(audioBuffers, pausesMs);
+}
+
+export async function submitTextChunks(ws, nextMessage, chunks) {
+  const acknowledgements = chunks.map((_, index) => {
+    const id = index + 1;
+    return nextMessage((message) => message.message_type === "TEXT_CHUNK_ACK" && (message.ack_id === id || message.chunck_id === id || message.chunk_id === id));
+  });
+  chunks.forEach((chunk, index) => {
+    ws.send(JSON.stringify({ message_type: "INPUT_TEXT_CHUNK", text: chunk, ack_id: index + 1 }));
+  });
+  await Promise.all(acknowledgements);
+}
+
+export async function synthesizeWithSahara({ chunks, pausesMs = [], voiceAccent, voiceGender, language, apiKey, signal, readyTimeoutMs = 14000, returnChunks = false, useWarmPool = true, onChunk }) {
+  const sessionOptions = { voiceAccent, voiceGender, language, apiKey };
+  const session = useWarmPool ? await acquireSession(sessionOptions) : await openSaharaSession(sessionOptions);
+  const { ws, nextMessage } = session;
+  const abort = () => ws.terminate();
+  signal?.addEventListener("abort", abort, { once: true });
+  try {
+    if (signal?.aborted) throw new Error("Sahara TTS request was cancelled.");
+
+    // Register every waiter before sending so fast acknowledgements cannot race
+    // past us, then submit all text without serial acknowledgement delays.
+    await submitTextChunks(ws, nextMessage, chunks);
 
     const audioBuffers = new Array(chunks.length);
     const pending = new Set(chunks.map((_, index) => index + 1));
@@ -110,6 +265,7 @@ export async function synthesizeWithSahara({ chunks, pausesMs = [], voiceAccent,
         if (status === "READY" && message.audio_base_64) {
           audioBuffers[id - 1] = Buffer.from(message.audio_base_64, "base64");
           pending.delete(id);
+          onChunk?.(id - 1, audioBuffers[id - 1]);
         }
       }
       if (pending.size) await wait(350);
@@ -120,11 +276,13 @@ export async function synthesizeWithSahara({ chunks, pausesMs = [], voiceAccent,
     // COMMITTED_AUDIO kept old sessions open long enough to block the next turn.
     ws.send(JSON.stringify({ message_type: "COMMIT" }));
     ws.close();
-    return returnChunks ? audioBuffers : mergeWavBuffers(audioBuffers, pausesMs);
+    const result = returnChunks ? audioBuffers : mergeWavBuffers(audioBuffers, pausesMs);
+    if (session.fromWarmPool) console.info("[latency] Sahara warm session used", { voiceAccent, voiceGender, language });
+    return result;
   } catch (error) {
     if (ws.readyState === WebSocket.OPEN) ws.close();
     else if (ws.readyState === WebSocket.CONNECTING) ws.terminate();
-    throw new Error(error?.message || "Sahara TTS connection failed.");
+    throw describeSessionFailure(error instanceof Error ? error : new Error(error?.message || "Sahara TTS connection failed."));
   } finally {
     signal?.removeEventListener("abort", abort);
   }

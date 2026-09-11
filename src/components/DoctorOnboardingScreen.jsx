@@ -1,0 +1,11 @@
+import { useState } from "react";
+import { BadgeCheck, LogOut } from "lucide-react";
+import BrandHeader from "./BrandHeader";
+import { applyForAccess } from "../lib/doctors";
+import { supabase } from "../lib/supabase/client";
+
+export default function DoctorOnboardingScreen({ email, onApplied, onLogout }) {
+  const [name,setName]=useState(""); const [licence,setLicence]=useState(""); const [busy,setBusy]=useState(false); const [error,setError]=useState("");
+  const submit=async(e)=>{e.preventDefault();setBusy(true);setError("");try{await applyForAccess(name,licence);onApplied();}catch(err){setError(err.message);}finally{setBusy(false);}};
+  return <main className="min-h-[100dvh] bg-[#edf0eb]"><BrandHeader compact/><section className="mx-auto max-w-[720px] px-5 pb-12 md:px-10"><form onSubmit={submit} className="rounded-[16px] bg-white p-7 shadow-[0_16px_40px_rgba(16,63,51,.08)] md:p-10"><BadgeCheck size={34} className="text-[#1d6e59]"/><h1 className="mt-5 text-4xl font-black tracking-[-.03em] text-[#103f33]">Complete your application</h1><p className="mt-3 text-lg font-semibold text-[#527269]">Signed in as {email}. An administrator checks these details against the medical register before approving your account.</p><label className="mt-7 block font-black">Full name<input required value={name} maxLength={120} onChange={(e)=>setName(e.target.value)} placeholder="Dr Adaeze Okonkwo" className="mt-2 min-h-14 w-full rounded-[14px] bg-[#f1f3ee] px-4"/></label><label className="mt-5 block font-black">Medical registration number<input required value={licence} maxLength={60} onChange={(e)=>setLicence(e.target.value)} placeholder="MDCN/R/12345" className="mt-2 min-h-14 w-full rounded-[14px] bg-[#f1f3ee] px-4"/></label>{error&&<div role="alert" className="mt-5 rounded-[14px] bg-[#fff0e8] p-4 font-bold text-[#8b311f]">{error}</div>}<button disabled={busy} className="mt-7 min-h-16 w-full rounded-[14px] bg-[#103f33] px-6 text-lg font-black text-white">{busy?"Sending your application…":"Send for approval"}</button><button type="button" onClick={async()=>{await supabase?.auth.signOut();onLogout();}} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 font-black text-[#155944]"><LogOut size={20}/>Sign out</button></form></section></main>;
+}
