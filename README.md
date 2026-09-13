@@ -1,6 +1,6 @@
 # IleraPoint
 
-A voice-led, code-switching patient intake and triage kiosk for primary-care settings. V3 adds real Tencent Cloud face identification, consented consultation recording, Supabase persistence, an authenticated doctor review and prescribing workspace, and prescription collection at the kiosk.
+A voice-led, code-switching patient intake and triage kiosk for primary-care settings. V3 adds patient record lookup and registration, consented consultation recording, Supabase persistence, an authenticated doctor review and prescribing workspace, and prescription collection at the kiosk.
 
 ## Run locally
 
@@ -10,7 +10,7 @@ cp .env.example .env
 npm run dev
 ```
 
-Add the Sahara, Gemini, Tencent Cloud, and Supabase values listed in `.env.example`, then open `http://localhost:5173`. Sahara, Gemini, and Tencent are real integrations; there are no mock or device speech providers. If Sahara playback is unavailable, the interface reports it and typed answers remain available as an accessibility fallback.
+Add the Sahara, Gemini, and Supabase values listed in `.env.example`, then open `http://localhost:5173`. Sahara and Gemini are real integrations; there are no mock or device speech providers. If Sahara playback is unavailable, the interface reports it and typed answers remain available as an accessibility fallback.
 
 The server runs on port `8787`; Vite proxies `/api` requests to it. API keys are read only by the server and are never exposed to browser code.
 
@@ -30,13 +30,10 @@ Open `http://localhost:5173/yoruba-image-to-speech` directly; this public utilit
 
 ## V3 patient flow
 
-- `Tap to begin` opens camera-based face identification.
-- Returning patients are found by Tencent Cloud 1:N face search (`SearchPersons`); new patients give name/phone and are enrolled with `CreatePerson` under their Supabase UUID.
-- Tencent 1:1 verification is exposed at `POST /api/face/compare` for explicit verification workflows.
-- **A face is only accepted when it clears `FACE_MATCH_THRESHOLD` and the runner-up is at least `FACE_MATCH_MARGIN` behind.** Anything less confident, or two candidates too close to separate, is reported as no match and falls through to manual lookup — the kiosk never guesses which patient it is opening. Calibrate both against real faces in your lighting before relying on them.
-- Manual name/phone lookup remains available whenever capture or matching fails.
-- New patients choose a dedicated registration path, enter name and phone first, then enrol their face before the conversation begins.
-- MediaPipe detects one face locally and gates automatic capture until it is centred, close enough, and stable; more than one face in frame refuses to capture at all. The camera requests 1280×720 from the front camera and sends the sharpest full-resolution frame of a three-shot burst to Tencent; the detected box guides framing and sharpness scoring only, and does not crop the provider image. The WASM runtime and face model are self-hosted under `public/mediapipe`.
+- `Tap to begin` opens patient record access with separate returning- and new-patient routes.
+- Returning patients search Supabase records by name or phone and explicitly choose their matching record.
+- New patients enter their name and optional phone number, create a record, and continue directly to recording consent.
+- No photograph or biometric information is captured, processed, transmitted, or stored.
 - A separate consent screen explains full-session video, private clinician access, and the right to continue without video.
 - Accepted consent starts one modest 640×480 stream used by both per-turn audio recording and continuous audio/video recording. A persistent red indicator remains visible throughout recording. After each spoken question, listening starts automatically; local voice activity detection waits for speech and submits the answer after about 2.6 seconds of silence so thinking pauses are not cut off, while typing remains available.
 - On completion, the corrected record, complete turn history, consent choice, red-flag state, and any recording are saved. Browser recording blobs are normalized to `video/webm` before upload so Supabase Storage never receives a browser-generated `text/plain` MIME type. Video objects are private and only delivered through short-lived signed URLs.
@@ -116,16 +113,16 @@ Self-service signup needs working email delivery: the project requires email con
 - `server/index.js`: Sahara STT with adaptive status polling, pooled streaming TTS with Sahara's synchronous endpoint as a provider-only recovery path, and one history-aware Gemini structured-output call per turn.
 - `server/yorubaOcr.js`: exact Yoruba text extraction from images using Gemini multimodal input.
 - `server/yorubaScript.js`: Yoruba orthography restoration, code-switched English preservation, and screenplay cast extraction.
-- `server/tencentFace.js` and `server/routes/face.js`: in-memory images, TC3-HMAC-SHA256 signing, and server-only Tencent enrol/search/verify calls. `resolveFaceMatch` holds the accept-or-refuse rule.
+- `server/routes/patients.js`: patient registration and name/phone record lookup.
 - `server/routes/consultations.js`: private Storage upload, consultation persistence, doctor queue/case reads, and signed video URLs.
 - `server/routes/prescriptions.js`: authenticated prescription writes and completion status.
 - `src/lib/media/sessionRecorder.js`: one media stream for per-turn audio clips, automatic speech/silence detection, and consented continuous recording.
 - `src/lib/safety/redFlags.js`: deterministic red-flag function, invoked after every interview turn.
-- Supabase holds patients, consultations, doctors, and prescriptions. Face images are never persisted; only Tencent's person id is stored.
+- Supabase holds patients, consultations, doctors, and prescriptions. Patient access uses name or phone only.
 
 ## Supabase setup
 
-Run the migrations in order in the Supabase SQL editor or migration CLI: [`0001_ilera_v3.sql`](supabase/migrations/0001_ilera_v3.sql) creates the tables, [`0002_doctor_onboarding.sql`](supabase/migrations/0002_doctor_onboarding.sql) adds the doctor approval columns, [`0003_face_and_collection.sql`](supabase/migrations/0003_face_and_collection.sql) adds face identity and the patient collection token, [`0004_task_shifting.sql`](supabase/migrations/0004_task_shifting.sql) adds clinician roles and case routing, [`0005_prescription_safety.sql`](supabase/migrations/0005_prescription_safety.sql) records interaction overrides, and [`0006_escalation_alerts.sql`](supabase/migrations/0006_escalation_alerts.sql) creates the private alert-audio bucket. If a migration is missing at runtime the API says which file to run rather than failing opaquely. It creates the V3 tables, indexes, status constraints, RLS, and private WebM-only `consultation-videos` bucket with a 50 MB object limit. The Express server uses the service-role key; never place that key in a `VITE_` variable. The browser receives only the project URL and anon key for Supabase Auth.
+Run the migrations in order in the Supabase SQL editor or migration CLI: [`0001_ilera_v3.sql`](supabase/migrations/0001_ilera_v3.sql) creates the tables, [`0002_doctor_onboarding.sql`](supabase/migrations/0002_doctor_onboarding.sql) adds doctor approval columns, [`0003_patient_collection.sql`](supabase/migrations/0003_patient_collection.sql) adds the patient collection token, [`0004_task_shifting.sql`](supabase/migrations/0004_task_shifting.sql) adds clinician roles and case routing, [`0005_prescription_safety.sql`](supabase/migrations/0005_prescription_safety.sql) records interaction overrides, [`0006_escalation_alerts.sql`](supabase/migrations/0006_escalation_alerts.sql) creates the private alert-audio bucket, and [`0007_remove_biometric_identity.sql`](supabase/migrations/0007_remove_biometric_identity.sql) removes legacy provider-reference columns from upgraded databases. If a migration is missing at runtime the API says which file to run rather than failing opaquely. The migrations create the V3 tables, indexes, status constraints, RLS, and private WebM-only `consultation-videos` bucket with a 50 MB object limit. The Express server uses the service-role key; never place that key in a `VITE_` variable. The browser receives only the project URL and anon key for Supabase Auth.
 
 ## Hausa diagnostics
 

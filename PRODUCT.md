@@ -18,7 +18,7 @@ Secondary users are authenticated doctors who review the structured intake recor
 
 ## Product Purpose
 
-IleraPoint identifies or enrolls patients by palm with a manual fallback, conducts a short voice-led intake, checks deterministic emergency red flags, records the session only with explicit consent, and sends the corrected record to an authenticated doctor for human review and prescribing.
+IleraPoint lets patients find or create a record using their name or phone, conducts a short voice-led intake, checks deterministic emergency red flags, records the session only with explicit consent, and sends the corrected record to an authenticated doctor for human review and prescribing.
 
 ## Positioning
 
@@ -42,8 +42,8 @@ The product is used on a shared full-screen kiosk in a clinic or community healt
 - Summary speech playback and a separate clinician review route.
 - A public, authentication-free Yoruba image-to-speech tool extracts editable text from a JPG, PNG, or WebP image, restores Yoruba orthography without translating code-switched English, assigns editable Sahara voices to screenplay characters, and generates a paced downloadable WAV.
 - API credentials remain server-side.
-- Tencent PalmAI RGB register, search, and compare calls are proxied through Express; biometric images are never stored.
-- Manual name/phone lookup is always available when palm capture or matching fails.
+- Returning patients search records by name or phone; new patients register their details before the interview.
+- The kiosk performs no biometric identification and captures no photograph during patient record access.
 - Continuous 640×480 audio/video recording is opt-in, normalized to `video/webm`, and stored privately for human clinician review only.
 - Supabase persists patients, consultations, doctors, prescriptions, and corrected turn history.
 - Doctors authenticate with email/password, review an oldest-first queue, approve or flag cases, and issue plain-text prescriptions.

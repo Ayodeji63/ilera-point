@@ -20,8 +20,6 @@
       "placeholder-green": { "role": "neutral", "displayName": "Placeholder Green", "canonical": "#7f908b", "tonalRamp": ["oklch(15% 0.018 165)", "oklch(25% 0.018 165)", "oklch(35% 0.018 165)", "oklch(48% 0.018 165)", "#7f908b", "oklch(70% 0.015 165)", "oklch(84% 0.009 165)", "oklch(95% 0.004 165)"] },
       "manual-placeholder-green": { "role": "neutral", "displayName": "Manual Lookup Placeholder Green", "canonical": "#45655d", "tonalRamp": ["oklch(15% 0.025 165)", "oklch(25% 0.025 165)", "#45655d", "oklch(48% 0.025 165)", "oklch(62% 0.022 165)", "oklch(75% 0.016 165)", "oklch(84% 0.010 165)", "oklch(95% 0.004 165)"] },
       "future-stop": { "role": "neutral", "displayName": "Future Stop", "canonical": "#c7c8bc", "tonalRamp": ["oklch(15% 0.012 100)", "oklch(25% 0.012 100)", "oklch(35% 0.012 100)", "oklch(48% 0.012 100)", "oklch(62% 0.010 100)", "oklch(75% 0.008 100)", "#c7c8bc", "oklch(95% 0.003 100)"] },
-      "camera-deep-green": { "role": "neutral", "displayName": "Camera Deep Green", "canonical": "#092c24", "tonalRamp": ["oklch(15% 0.040 165)", "#092c24", "oklch(35% 0.040 165)", "oklch(48% 0.038 165)", "oklch(62% 0.030 165)", "oklch(75% 0.022 165)", "oklch(84% 0.014 165)", "oklch(95% 0.005 165)"] },
-      "capture-ready-green": { "role": "tertiary", "displayName": "Capture Ready Green", "canonical": "#55e39b", "tonalRamp": ["oklch(15% 0.120 155)", "oklch(25% 0.120 155)", "oklch(35% 0.120 155)", "oklch(48% 0.120 155)", "oklch(62% 0.115 155)", "#55e39b", "oklch(84% 0.070 155)", "oklch(95% 0.025 155)"] },
       "listening-coral": { "role": "secondary", "displayName": "Listening Coral", "canonical": "#ef755f", "tonalRamp": ["oklch(15% 0.135 30)", "oklch(25% 0.135 30)", "oklch(35% 0.135 30)", "oklch(48% 0.135 30)", "oklch(62% 0.130 30)", "#ef755f", "oklch(84% 0.070 30)", "oklch(95% 0.025 30)"] },
       "alert-oxblood": { "role": "tertiary", "displayName": "Alert Oxblood", "canonical": "#8e2f24", "tonalRamp": ["oklch(15% 0.115 30)", "oklch(25% 0.115 30)", "#8e2f24", "oklch(48% 0.115 30)", "oklch(62% 0.105 30)", "oklch(75% 0.075 30)", "oklch(84% 0.050 30)", "oklch(95% 0.018 30)"] },
       "warning-wash": { "role": "neutral", "displayName": "Warning Wash", "canonical": "#fff2c7", "tonalRamp": ["oklch(15% 0.070 90)", "oklch(25% 0.070 90)", "oklch(35% 0.070 90)", "oklch(48% 0.070 90)", "oklch(62% 0.065 90)", "oklch(75% 0.055 90)", "oklch(86% 0.040 90)", "#fff2c7"] },
@@ -50,7 +48,6 @@
       { "name": "welcome-action", "value": "transform 300ms; hover scale(1.025); active scale(0.98)", "purpose": "Confirms the dominant start action without distracting motion." },
       { "name": "listening-ring", "value": "1.8s cubic-bezier(.2,.8,.2,1) infinite; second ring delayed 700ms", "purpose": "Makes active microphone capture unmistakable." },
       { "name": "recording-status-pulse", "value": "pulse; repeating while consented visit capture is active", "purpose": "Keeps the persistent Visit recording indicator noticeable without competing with the current question." },
-      { "name": "palm-trace-feedback", "value": "local landmark refresh every 450ms; yellow adjusting state; green ready state after four stable samples", "purpose": "Turns MediaPipe hand geometry into calm, continuous automatic-capture guidance without a shutter action." },
       { "name": "reduced-motion", "value": "animation-duration: 0.01ms; animation-iteration-count: 1", "purpose": "Disables repeating motion when reduced motion is requested." }
     ],
     "breakpoints": [
@@ -99,13 +96,6 @@
       "css": ".ds-card-route { max-width:720px; padding:40px; border-radius:16px; background:#103f33; color:#fff; box-shadow:0 18px 45px rgba(16,63,51,.12); font-family:'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; } .ds-card-route h2 { margin:40px 0 0; max-width:16ch; font-size:clamp(2.4rem,5vw,4.8rem); font-weight:900; line-height:1.02; letter-spacing:-.04em; text-wrap:balance; } .ds-card-route p { margin:20px 0 0; color:#b8d5cc; font-size:18px; font-weight:600; line-height:1.6; } .ds-route-label { color:#b8d5cc; font-size:14px; font-weight:900; letter-spacing:.12em; }"
     },
     {
-      "name": "Palm Onboarding Board",
-      "kind": "custom",
-      "description": "Separate returning- and new-patient routes combine local traced auto-capture, details-first signup, manual lookup, and a timed or failure-triggered no-palm escape.",
-      "html": "<section class=\"ds-palm-board\"><div class=\"ds-palm-scan\"><h2>Welcome back.</h2><p>Show one open palm. We trace it and capture automatically.</p><small>Your palm image is used only during this step and is not stored by IleraPoint.</small><div class=\"ds-palm-view\"><svg viewBox=\"0 0 100 75\" aria-hidden=\"true\"><path d=\"M49 63 35 49 31 35c-1-4 5-6 7-2l4 9-1-25c0-5 7-5 7 0v18-24c0-5 7-5 7 0v24-20c0-5 7-5 7 0v23-15c0-5 7-5 7 0v24c0 8-7 16-20 16Z\"/></svg></div><div class=\"ds-palm-status\"><i></i>Palm in frame — capturing automatically</div></div><aside class=\"ds-palm-route\"><div class=\"ds-patient-type\"><button class=\"ds-active\">Returning patient</button><button>I’m a new patient</button></div><h3>Find your existing record</h3><p>Your palm is checked automatically. If that does not work, search by name or phone.</p><div class=\"ds-divider\">Manual lookup</div><input aria-label=\"Patient name\" placeholder=\"Full name\"><input aria-label=\"Phone number\" placeholder=\"Phone number\"><button class=\"ds-lookup\">Search patient records</button><button class=\"ds-no-palm\">Continue without palm</button></aside></section>",
-      "css": ".ds-palm-board { display:grid; grid-template-columns:1.08fr .92fr; gap:24px; max-width:1100px; color:#103f33; font-family:'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; } .ds-palm-scan,.ds-palm-route { padding:28px; border-radius:16px; } .ds-palm-scan { background:#103f33; color:#fff; box-shadow:0 18px 45px rgba(16,63,51,.12); } .ds-palm-scan h2,.ds-palm-route h3 { margin:0; font-size:32px; font-weight:900; letter-spacing:-.03em; } .ds-palm-scan p { margin:12px 0 0; color:#b8d5cc; font-size:18px; font-weight:600; } .ds-palm-scan small { display:block; margin-top:8px; color:rgba(255,255,255,.8); font-size:14px; font-weight:700; } .ds-palm-route { background:#fff; box-shadow:0 16px 40px rgba(16,63,51,.10); } .ds-palm-route h3 { margin-top:28px; } .ds-palm-route p { color:#527269; font-weight:600; } .ds-palm-view { display:grid; place-items:center; aspect-ratio:4/3; margin-top:24px; overflow:hidden; border-radius:16px; background:#092c24; } .ds-palm-view::before { content:''; position:absolute; width:55%; height:70%; border:3px dashed #55e39b; border-radius:42%; } .ds-palm-view svg { z-index:1; width:58%; fill:none; stroke:#55e39b; stroke-width:1.2; stroke-linecap:round; stroke-linejoin:round; } .ds-palm-status { display:flex; align-items:center; gap:12px; min-height:56px; margin-top:16px; padding:0 16px; border-radius:14px; background:rgba(255,255,255,.1); font-weight:900; } .ds-palm-status i { width:12px; height:12px; border-radius:9999px; background:#55e39b; } .ds-patient-type { display:grid; grid-template-columns:1fr 1fr; gap:8px; padding:6px; border-radius:14px; background:#edf0eb; } .ds-patient-type button { min-height:48px; border:0; border-radius:10px; background:transparent; color:#45655d; font-weight:900; cursor:pointer; } .ds-patient-type .ds-active { background:#103f33; color:#fff; } .ds-divider { display:flex; align-items:center; gap:12px; margin:24px 0; color:#527269; font-size:14px; font-weight:900; letter-spacing:.1em; text-transform:uppercase; } .ds-divider::before,.ds-divider::after { content:''; flex:1; height:1px; background:#d8e1dc; } .ds-palm-route input { box-sizing:border-box; width:100%; min-height:56px; margin-top:12px; padding:12px 16px; border:0; border-radius:14px; background:#f1f3ee; color:#103f33; font-weight:600; } .ds-palm-route input::placeholder { color:#45655d; opacity:1; } .ds-palm-route>.ds-lookup,.ds-palm-route>.ds-no-palm { width:100%; min-height:56px; margin-top:12px; border:0; border-radius:14px; font-weight:900; cursor:pointer; } .ds-lookup { background:#e7f1ed; color:#155944; } .ds-no-palm { background:#103f33; color:#fff; } .ds-palm-board input:focus-visible,.ds-palm-board button:focus-visible { outline:4px solid #0a78ff; outline-offset:4px; } .ds-palm-board button:hover { transform:translateY(-1px); } .ds-palm-board button:active { transform:scale(.98); } @media(max-width:760px){.ds-palm-board{grid-template-columns:1fr}}"
-    },
-    {
       "name": "Visit Recording Indicator",
       "kind": "chip",
       "refersTo": "status-recording",
@@ -138,15 +128,14 @@
   ],
   "narrative": {
     "northStar": "The Care Route Board",
-    "overview": "IleraPoint makes a clinical intake feel like following a clear, human route rather than completing a form. Its visual world borrows the certainty of wayfinding: one dominant instruction, visible route choices, seven safety-ceiling stops, oversized directional controls, and high-contrast panels that can be read at kiosk distance. The same board language now spans returning-patient identification, new-patient signup and palm enrollment, informed recording consent, voice intake, clinician review, and a deliberately separate prescription stage.\n\nThe atmosphere is calm but not timid. Deep clinic green provides institutional trust, sunlit yellow identifies the next physical action, and chalk-toned backgrounds keep the environment warm and public-facing. Strong type, sparse choices, and grounded panels prioritize low-literacy clarity without making the experience childish.",
+    "overview": "IleraPoint makes a clinical intake feel like following a clear, human route rather than completing a form. Its visual world borrows the certainty of wayfinding: one dominant instruction, visible route choices, plain-language progress, oversized directional controls, and high-contrast panels that can be read at kiosk distance. The same board language spans patient record access, new-patient signup, informed recording consent, voice intake, clinician review, and a deliberately separate prescription stage.\n\nThe atmosphere is calm but not timid. Deep clinic green provides institutional trust, sunlit yellow identifies the next physical action, and chalk-toned backgrounds keep the environment warm and public-facing. Strong type, sparse choices, and grounded panels prioritize low-literacy clarity without making the experience childish.",
     "keyCharacteristics": [
       "Oversized wayfinding copy with one obvious action per stage.",
       "Clinic green structure, sunlit yellow direction, and chalk-white breathing room.",
       "Squared route panels softened by modest corners; circles are reserved for voice, status, and compact controls.",
       "Bold, hyperlegible type designed for standing distance and touch-first use.",
       "Persistent visible status, saved-answer count, deterministic correction controls, transcription, consent state, and multilingual reassurance.",
-      "A two-route identity board: automatic palm or manual lookup for returning patients, and details-first signup for new patients.",
-      "Local hand tracing and automatic capture with explicit transient-image reassurance and a timed no-palm escape.",
+      "A two-route record board: name or phone lookup for returning patients and details-first signup for new patients.",
       "A denser but visually related doctor workspace with an oldest-first queue, evidence-first case review, and prescription as a separate committing step."
     ],
     "rules": [
@@ -157,9 +146,8 @@
       { "name": "The One Route Rule", "body": "Each patient stage gives the primary instruction and primary physical action the largest share of space; supporting notes remain adjacent or directly below, never competitive.", "section": "layout" },
       { "name": "The Grounded Board Rule", "body": "Shadows establish a readable layer order, not spectacle. Do not stack multiple floating surfaces or add colored glows outside active progress and recording feedback.", "section": "elevation" },
       { "name": "The Circle Has Meaning Rule", "body": "Use circles for voice, progress, and compact status—not as a generic card silhouette. The contrast between circular actions and squared information panels makes the route scannable.", "section": "shapes" },
-      { "name": "The Equal Access Rule", "body": "Palm scanning is the primary identity action, not a gate to care. Returning patients retain manual lookup, and new patients gain a no-palm continuation after the timed or hardware-failure threshold.", "section": "components" },
-      { "name": "The Details Before Enrollment Rule", "body": "New-patient name and phone must be entered and confirmed before the palm scan can enroll an identity or the patient can continue to conversation.", "section": "components" },
-      { "name": "The Transient Palm Rule", "body": "Keep local tracing, automatic capture, and non-storage reassurance visible together. Never imply that IleraPoint saves the palm image or requires a person to press a capture control.", "section": "components" },
+      { "name": "The Explicit Choice Rule", "body": "A returning patient always chooses a displayed record; the kiosk never guesses between possible matches.", "section": "components" },
+      { "name": "The Details Before Interview Rule", "body": "New-patient details must be saved before recording consent and conversation.", "section": "components" },
       { "name": "The Evidence Before Action Rule", "body": "Clinician decisions follow the record, transcript, and available recording in reading order. Status and safety information must never rely on color alone.", "section": "components" },
       { "name": "The Prescribing Is a Commitment Rule", "body": "Do not collapse prescription fields into the case action rail or style them as a quick inline note. The dedicated stage makes clinician authorship and completion consequence explicit.", "section": "components" }
     ],
@@ -172,10 +160,8 @@
       "Do keep touch targets at least 44px high, with primary actions typically 56–64px and the voice control 128px.",
       "Do retain the 4px focus-blue outline and reduced-motion fallback.",
       "Do let multilingual reassurance remain visible without creating a dense language-selection step.",
-      "Do preserve separate returning- and new-patient routes; collect and confirm new-patient details before palm enrollment and before conversation.",
-      "Do keep manual name/phone lookup available throughout the returning-patient route.",
-      "Do pair local MediaPipe tracing and automatic capture status with the plain-language promise that palm images are transient and not stored.",
-      "Do expose Continue without palm after 12 seconds of new-patient scanning and immediately on camera, tracing, or capture failure.",
+      "Do preserve separate returning- and new-patient routes; save new-patient details before conversation.",
+      "Do let returning patients search by either name or phone and choose an explicit result.",
       "Do present recording consent as a dedicated, balanced choice and keep the consented recording indicator persistent during intake.",
       "Do keep clinician queue order, patient-reported evidence, recording availability, and urgent status explicit in text.",
       "Do preserve prescription as a separate stage with patient context, a clear return path, and one completion action."
@@ -187,9 +173,8 @@
       "Don't introduce decorative type, low-contrast copy, thin body weights, or tiny labels.",
       "Don't replace the route-board contrast with glass effects, gradients, or ornamental shadows.",
       "Don't use circles indiscriminately; preserve them for voice, progress, and status semantics.",
-      "Don't make palm capture, video consent, or AI video analysis appear required for receiving care.",
+      "Don't make video consent appear required for receiving care or imply that recorded video receives AI analysis.",
       "Don't merge returning-patient lookup and new-patient signup into one ambiguous form or let a new patient reach conversation before signup.",
-      "Don't add a manual palm shutter, hide camera-failure recovery, or suggest that IleraPoint stores the captured palm image.",
       "Don't merge clinician review and prescribing into one dense surface or imply that the patient-reported record is a diagnosis."
     ]
   }

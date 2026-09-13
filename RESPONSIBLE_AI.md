@@ -4,7 +4,7 @@
 
 IleraPoint structures patient-reported intake information. It does not diagnose illness, recommend medicine, or replace a clinician. Emergency escalation is a deterministic application rule and does not depend on Gemini classifying urgency.
 
-Consultation video is never sent to Gemini or any other AI model. It exists only for a human doctor's visual assessment after separate, explicit patient consent. Palm images are transient biometric inputs sent to Tencent PalmAI and are not stored by IleraPoint. A palm failure cannot deny access to intake because manual name/phone lookup remains available.
+Consultation video is never sent to Gemini or any other AI model. It exists only for a human doctor's visual assessment after separate, explicit patient consent. Patient record access uses name or phone only; the kiosk performs no biometric identification.
 
 ## Language performance
 
@@ -34,4 +34,4 @@ No matched Hausa evaluation audio was supplied with V2, so this repository does 
 - “Redo my last answer” restores the exact record snapshot from before the most recent turn without relying on AI interpretation.
 - The patient can edit every patient-facing record field before clinician handoff.
 - A clinician must review and approve or flag the resulting record.
-- V3 persists corrected consultations and prescriptions in Supabase for authenticated clinician review; biometric images remain transient and video remains in private Storage.
+- V3 persists corrected consultations and prescriptions in Supabase for authenticated clinician review; consented video remains in private Storage.

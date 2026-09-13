@@ -5,7 +5,19 @@
 export async function transcribeTurn({ transcriber, blob, language, signal, upload, onFallback = () => {} }) {
   if (transcriber) {
     try {
-      const transcript = await transcriber.commit();
+      let removeAbortListener = () => {};
+      const aborted = new Promise((_, reject) => {
+        const abort = () => {
+          transcriber.close?.();
+          reject(new DOMException("The transcription was cancelled.", "AbortError"));
+        };
+        if (signal?.aborted) abort();
+        else if (signal) {
+          signal.addEventListener("abort", abort, { once: true });
+          removeAbortListener = () => signal.removeEventListener("abort", abort);
+        }
+      });
+      const transcript = await Promise.race([transcriber.commit(), aborted]).finally(removeAbortListener);
       if (transcript.trim()) return transcript;
       onFallback("Live transcription returned no words.");
     } catch (error) {

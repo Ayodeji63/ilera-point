@@ -69,7 +69,7 @@ consultationsRouter.get("/:id/result", async (req, res) => {
     if (!data || !patientTokenMatches(data.patient_token, token)) return res.status(404).json({ error: "No consultation was found." });
     res.json({ result: collectionView(data, data.prescriptions?.[0] || null) });
   } catch (error) {
-    res.status(502).json({ error: missingColumnHint(error, "0003_face_and_collection.sql") || "Your result could not be checked." });
+    res.status(502).json({ error: missingColumnHint(error, "0003_patient_collection.sql") || "Your result could not be checked." });
   }
 });
 

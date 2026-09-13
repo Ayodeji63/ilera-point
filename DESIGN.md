@@ -1,6 +1,6 @@
 ---
 name: IleraPoint
-description: A calm identity-to-care route for walk-up patient intake.
+description: A calm record-to-care route for walk-up patient intake.
 colors:
   clinic-green: "#103f33"
   route-green: "#1d6e59"
@@ -18,8 +18,6 @@ colors:
   placeholder-green: "#7f908b"
   manual-placeholder-green: "#45655d"
   future-stop: "#c7c8bc"
-  camera-deep-green: "#092c24"
-  capture-ready-green: "#55e39b"
   listening-coral: "#ef755f"
   alert-oxblood: "#8e2f24"
   warning-wash: "#fff2c7"
@@ -193,7 +191,7 @@ components:
 
 **Creative North Star: "The Care Route Board"**
 
-IleraPoint makes a clinical intake feel like following a clear, human route rather than completing a form. Its visual world borrows the certainty of wayfinding: one dominant instruction, visible route choices, plain-language progress, oversized directional controls, and high-contrast panels that can be read at kiosk distance. The same board language now spans returning-patient identification, new-patient signup and palm enrollment, informed recording consent, voice intake, the public Yoruba image-to-speech utility, clinician review, and a deliberately separate prescription stage.
+IleraPoint makes a clinical intake feel like following a clear, human route rather than completing a form. Its visual world borrows the certainty of wayfinding: one dominant instruction, visible route choices, plain-language progress, oversized directional controls, and high-contrast panels that can be read at kiosk distance. The same board language now spans patient record access, new-patient signup, informed recording consent, voice intake, the public Yoruba image-to-speech utility, clinician review, and a deliberately separate prescription stage.
 
 The atmosphere is calm but not timid. Deep clinic green provides institutional trust, sunlit yellow identifies the next physical action, and chalk-toned backgrounds keep the environment warm and public-facing. Strong type, sparse choices, and grounded panels prioritize low-literacy clarity without making the experience childish.
 
@@ -204,8 +202,7 @@ The atmosphere is calm but not timid. Deep clinic green provides institutional t
 - Squared route panels softened by modest corners; circles are reserved for voice, status, and compact controls.
 - Bold, hyperlegible type designed for standing distance and touch-first use.
 - Persistent visible status, saved-answer count, deterministic correction controls, transcription, consent state, and multilingual reassurance.
-- A two-route identity board: automatic palm or manual lookup for returning patients, and details-first signup for new patients.
-- Local hand tracing and automatic capture with explicit transient-image reassurance and a timed no-palm escape.
+- A two-route record board: name/phone lookup for returning patients and details-first signup for new patients.
 - A public, no-auth Yoruba image-to-speech workspace that pairs source imagery with editable text and playable output.
 - A denser but visually related doctor workspace with an oldest-first queue, evidence-first case review, and prescription as a separate committing step.
 
@@ -227,7 +224,6 @@ The palette pairs deep, dependable greens with a warm yellow route marker; coral
 
 - **Alert Oxblood:** A high-attention color for deterministic emergency surfaces and the persistent consented-recording indicator.
 - **Focus Blue:** The universal keyboard focus outline; it stays visually distinct from product-state colors.
-- **Capture Ready Green:** Confirms that the locally traced palm is correctly framed, open, and steady enough for automatic capture.
 
 ### Neutral
 
@@ -244,7 +240,6 @@ The palette pairs deep, dependable greens with a warm yellow route marker; coral
 - **Placeholder Green:** The softer green-gray used for empty and placeholder transcript copy.
 - **Manual Placeholder Green:** The darker accessible placeholder used on patient name and phone recovery fields.
 - **Future Stop:** The muted gray-green for unanswered route positions.
-- **Camera Deep Green:** The dark inset backing for the live camera feed and its unavailable-state overlay.
 - **Warning Wash / Warning Ink:** A paired notice treatment for missing information.
 - **Success Wash / Success Ink:** A paired confirmation treatment for approved records.
 - **Error Wash / Error Ink:** A paired, readable treatment for recoverable errors and follow-up states.
@@ -275,7 +270,7 @@ The palette pairs deep, dependable greens with a warm yellow route marker; coral
 
 ## Layout
 
-Patient screens occupy the full dynamic viewport. Content sits inside centered containers up to 1380px wide with 20px mobile gutters and 40px desktop gutters. The welcome and conversation stages become two-column boards at the medium breakpoint: roughly balanced copy/action on welcome, and a 1.15/0.85 route-panel-to-notes split during the interview. Palm onboarding uses a 1280px 1.08/0.92 camera-to-route split: the stable left panel carries scan guidance and live feedback, while the right panel changes between returning-patient recovery, new-patient details, and details-ready enrollment. Consent narrows to a single 1024px two-column decision board. Summary content narrows to 1024px.
+Patient screens occupy the full dynamic viewport. Content sits inside centered containers up to 1380px wide with 20px mobile gutters and 40px desktop gutters. The welcome and conversation stages become two-column boards at the medium breakpoint: roughly balanced copy/action on welcome, and a 1.15/0.85 route-panel-to-notes split during the interview. Patient record access uses a 1120px two-column board: route guidance on clinic green and returning/new-patient forms on paper white. Consent narrows to a single 1024px two-column decision board. Summary content narrows to 1024px.
 
 The public Yoruba image-to-speech route uses a 1280px work area and one joined two-panel board. At large widths, the dark upload/preview panel takes 0.9fr and the white transcription/audio panel takes 1.1fr; below the large breakpoint they stack in source-to-output order. Both panels keep a 520px minimum working height on wide layouts, while action buttons stack by default and share a row from the small breakpoint upward. On mobile, both grid children and the image preview explicitly permit shrinking and clip accidental spill; filenames and cast names truncate, capability copy wraps anywhere when necessary, and each voice-control pair remains intact so no content forces horizontal page overflow.
 
@@ -300,7 +295,7 @@ Depth is restrained and structural. Dark route panels use a broad green-tinted l
 
 ## Shapes
 
-The form language is a care board with softened corners. Main panels use gently squared 16px corners; fields, notices, buttons, and the brand tile use 14px corners. Full circles and pills are reserved for microphone actions, route stops, completion marks, language/status chips, and selected directional controls. The palm camera adds one organic silhouette: a 42%-rounded dashed guide inset from the feed, overlaid by a 21-point hand trace. Thin green-gray dividers organize records without turning the interface into a boxed form.
+The form language is a care board with softened corners. Main panels use gently squared 16px corners; fields, notices, buttons, and the brand tile use 14px corners. Full circles and pills are reserved for microphone actions, route stops, completion marks, language/status chips, and selected directional controls. Thin green-gray dividers organize records without turning the interface into a boxed form.
 
 **The Circle Has Meaning Rule.** Use circles for voice, progress, and compact status—not as a generic card silhouette. The contrast between circular actions and squared information panels makes the route scannable.
 
@@ -349,21 +344,15 @@ The header is a simple brand-and-utility band: a 44px rounded-square shield tile
 
 Interview progress is content-based rather than a fixed row of question stops. Show `Question n` alongside `n answers saved` and the phrase “gathering the details your clinician needs.” Do not display a required total: the interview ends when the clinical record is complete and can continue beyond seven when important information is still missing. While answering, the microphone is a live status indicator rather than a button; copy must clearly distinguish waiting for speech, hearing speech, detecting the finishing pause, and processing.
 
-### Palm Onboarding & Manual Recovery
+### Patient Record Access
 
-Palm onboarding is a two-panel care board with an explicit segmented choice between **Returning patient** and **I’m a new patient**. The dominant clinic-green panel carries the 4:3 camera feed, a dashed organic palm guide, the live 21-point hand trace, privacy reassurance, and an `aria-live` status row. Yellow means the hand still needs adjustment; capture-ready green means one complete, open palm has remained steady long enough for automatic capture. There is no capture button.
+Patient access is a two-panel care board with an explicit segmented choice between **Returning patient** and **I’m a new patient**. The clinic-green panel explains the task and privacy boundary; the white panel contains the active form. No photograph or biometric information is requested.
 
-The returning route starts scanning immediately and keeps manual name/phone lookup in the adjacent white panel. A failed match offers three clear outcomes: create a new patient record, retry the automatic scan, or continue using manual search results. The new-patient route reverses the sequence intentionally: collect full name and phone first, confirm those details, then enable palm enrollment. Only after identification or enrollment does the route proceed to recording consent and conversation.
+Returning patients search with either name or phone, then choose from clearly labeled matches. An empty result offers one direct recovery action: create a new patient record. New patients provide a full name and an optional phone number, then proceed directly to recording consent.
 
-Palm tracing runs locally from packaged MediaPipe assets on the kiosk. The interface states that the captured image is used only during this identity step and is not stored by IleraPoint. Capture itself is automatic: the kiosk checks for one full, centered, open palm, waits for steadiness, samples three frames, and uses the sharpest transient image for identification or enrollment.
+**The Explicit Choice Rule.** A returning patient always chooses a displayed record; the kiosk never guesses between possible matches.
 
-No-palm continuation is a first-class recovery path for new patients. **Continue without palm** appears after 12 seconds of active scanning, immediately when camera permission is denied or no camera exists, when the camera or local tracing fails, or after capture processing stops with an error. Camera overlays explain starting, blocked, missing, and failed states and retain a labeled **Retry camera** control.
-
-**The Equal Access Rule.** Palm scanning is the primary identity action, not a gate to care. Returning patients retain manual lookup, and new patients gain a no-palm continuation after the timed or hardware-failure threshold.
-
-**The Details Before Enrollment Rule.** New-patient name and phone must be entered and confirmed before the palm scan can enroll an identity or the patient can continue to conversation.
-
-**The Transient Palm Rule.** Keep local tracing, automatic capture, and non-storage reassurance visible together. Never imply that IleraPoint saves the palm image or requires a person to press a capture control.
+**The Details Before Interview Rule.** New-patient details must be saved before recording consent and conversation.
 
 ### Recording Consent & Indicator
 
@@ -391,7 +380,7 @@ For a mixed-gender cast, Sahara generation runs the male and female voice groups
 
 **The Cast Is Direction, Not Dialogue Rule.** Display detected character headings as editable voice assignments, but omit those labels from spoken output and always reassemble mixed-gender audio in screenplay order.
 
-**The Public Utility Rule.** Keep the Yoruba converter visibly connected to IleraPoint through the shared header and board system, but do not introduce patient identity, palm, consent, or doctor-workspace controls into this no-auth route.
+**The Public Utility Rule.** Keep the Yoruba converter visibly connected to IleraPoint through the shared header and board system, but do not introduce patient record, consent, or doctor-workspace controls into this no-auth route.
 
 ### Doctor Queue & Case Review
 
@@ -417,10 +406,8 @@ Prescription is a separate route at `/doctor/case/:id/prescribe`, with its own h
 - **Do** keep touch targets at least 44px high, with primary actions typically 56–64px and the voice control 128px.
 - **Do** retain the 4px focus-blue outline and reduced-motion fallback.
 - **Do** let multilingual reassurance remain visible without creating a dense language-selection step.
-- **Do** preserve separate returning- and new-patient routes; collect and confirm new-patient details before palm enrollment and before conversation.
-- **Do** keep manual name/phone lookup available throughout the returning-patient route.
-- **Do** pair local MediaPipe tracing and automatic capture status with the plain-language promise that palm images are transient and not stored.
-- **Do** expose **Continue without palm** after 12 seconds of new-patient scanning and immediately on camera, tracing, or capture failure.
+- **Do** preserve separate returning- and new-patient routes; save new-patient details before conversation.
+- **Do** let returning patients search by either name or phone and choose an explicit result.
 - **Do** present recording consent as a dedicated, balanced choice and keep the consented recording indicator persistent during intake.
 - **Do** keep the Yoruba utility’s image source and editable transcription visibly paired, preserving tone marks and line breaks in the review state.
 - **Do** reserve sunlit yellow for the ready-state **Download WAV** finish and expose OCR, generation, validation, and service states in text.
@@ -438,9 +425,8 @@ Prescription is a separate route at `/doctor/case/:id/prescribe`, with its own h
 - **Don't** introduce decorative type, low-contrast copy, thin body weights, or tiny labels.
 - **Don't** replace the route-board contrast with glass effects, gradients, or ornamental shadows.
 - **Don't** use circles indiscriminately; preserve them for voice, progress, and status semantics.
-- **Don't** make palm capture, video consent, or AI video analysis appear required for receiving care.
+- **Don't** make video consent appear required for receiving care or imply that recorded video receives AI analysis.
 - **Don't** merge returning-patient lookup and new-patient signup into one ambiguous form or let a new patient reach conversation before signup.
-- **Don't** add a manual palm shutter, hide camera-failure recovery, or suggest that IleraPoint stores the captured palm image.
 - **Don't** hide Yoruba transcription behind audio generation, retain stale audio after text edits, or require authentication for the public converter.
 - **Don't** flatten screenplay structure, read character headings aloud, split the final result into separate gender tracks, or let cast controls overflow the mobile viewport.
 - **Don't** merge clinician review and prescribing into one dense surface or imply that the patient-reported record is a diagnosis.

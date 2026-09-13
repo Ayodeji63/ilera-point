@@ -4,7 +4,6 @@ create table if not exists public.patients (
   id uuid primary key default gen_random_uuid(),
   name text not null,
   phone text,
-  palm_reference text,
   created_at timestamptz not null default now()
 );
 

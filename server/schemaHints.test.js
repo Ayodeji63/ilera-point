@@ -3,8 +3,8 @@ import { missingColumnHint } from "./schemaHints.js";
 
 describe("missingColumnHint", () => {
   it("names the migration to run when a column is absent", () => {
-    expect(missingColumnHint({ code: "42703", message: "column consultations.patient_token does not exist" }, "0003_face_and_collection.sql"))
-      .toMatch(/0003_face_and_collection\.sql/);
+    expect(missingColumnHint({ code: "42703", message: "column consultations.patient_token does not exist" }, "0003_patient_collection.sql"))
+      .toMatch(/0003_patient_collection\.sql/);
   });
 
   it("does not leak the column name to the caller", () => {

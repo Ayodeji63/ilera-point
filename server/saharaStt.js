@@ -1,10 +1,12 @@
 import WebSocket, { WebSocketServer } from "ws";
 
 const SAHARA_STT_STREAM_URL = "wss://infer.voice.intron.io/stt/v1/stream";
-// Sahara accepts 1KB to 32KB of PCM per message. Batching to 16KB keeps the
-// message count low without ever crossing the ceiling.
-const MIN_UPSTREAM_CHUNK = 16384;
+// Sahara accepts 1KB to 32KB of PCM per message. Batch at 16KB, then pad only
+// the final sub-1KB tail with a few milliseconds of silence before COMMIT.
+const MIN_UPSTREAM_CHUNK = 1024;
+const TARGET_UPSTREAM_CHUNK = 16384;
 const MAX_UPSTREAM_CHUNK = 32768;
+const SESSION_TIMEOUT_MS = 5000;
 // Sahara returns a committed transcript in six to eight seconds. Past twelve,
 // the kiosk is better off retrying through the file upload route.
 const COMMIT_TIMEOUT_MS = 12000;
@@ -30,12 +32,17 @@ export function validateStreamRequest({ languageCode, sampleRate, supportedLangu
 export function drainChunks(buffer, { flush = false } = {}) {
   const chunks = [];
   let rest = buffer;
-  while (rest.length >= MIN_UPSTREAM_CHUNK) {
-    chunks.push(rest.subarray(0, MAX_UPSTREAM_CHUNK));
-    rest = rest.subarray(MAX_UPSTREAM_CHUNK);
+  while (rest.length >= TARGET_UPSTREAM_CHUNK) {
+    const size = Math.min(TARGET_UPSTREAM_CHUNK, MAX_UPSTREAM_CHUNK);
+    chunks.push(rest.subarray(0, size));
+    rest = rest.subarray(size);
   }
   if (flush && rest.length) {
-    chunks.push(rest);
+    if (rest.length < MIN_UPSTREAM_CHUNK) {
+      const padded = Buffer.alloc(MIN_UPSTREAM_CHUNK);
+      rest.copy(padded);
+      chunks.push(padded);
+    } else chunks.push(rest);
     rest = rest.subarray(rest.length);
   }
   return { chunks, rest };
@@ -66,7 +73,10 @@ export function attachSpeechStream(server, { apiKey, supportedLanguages }) {
     let ackId = 1;
     let ready = false;
     let committed = false;
+    let commitRequested = false;
+    let terminal = false;
     let commitTimer = null;
+    let sessionTimer = setTimeout(() => fail("Sahara did not create a transcription session in time."), SESSION_TIMEOUT_MS);
 
     const send = (chunk) => upstream.send(JSON.stringify({ message_type: "INPUT_AUDIO_CHUNK", audio_base_64: chunk.toString("base64"), ack_id: ackId++ }));
     const drain = (flush) => {
@@ -76,11 +86,14 @@ export function attachSpeechStream(server, { apiKey, supportedLanguages }) {
     };
     const stop = () => {
       clearTimeout(commitTimer);
+      clearTimeout(sessionTimer);
       if (upstream.readyState === WebSocket.OPEN) upstream.close();
       else if (upstream.readyState === WebSocket.CONNECTING) upstream.terminate();
       if (client.readyState === WebSocket.OPEN) client.close();
     };
     const fail = (message) => {
+      if (terminal) return;
+      terminal = true;
       // The kiosk keeps the recorded audio, so a failure here just sends it back
       // to the file upload route rather than losing the patient's answer.
       console.warn("[Sahara STT] live transcription failed; kiosk falls back to file upload", { languageCode, message });
@@ -88,22 +101,36 @@ export function attachSpeechStream(server, { apiKey, supportedLanguages }) {
       stop();
     };
 
-    upstream.on("open", () => { ready = true; drain(false); });
+    const commit = () => {
+      if (!commitRequested || committed || !ready || upstream.readyState !== WebSocket.OPEN) return;
+      committed = true;
+      drain(true);
+      upstream.send(JSON.stringify({ message_type: "COMMIT" }));
+      commitTimer = setTimeout(() => fail("Sahara did not return a transcript in time."), COMMIT_TIMEOUT_MS);
+    };
+
     upstream.on("message", (raw) => {
       let message;
       try { message = JSON.parse(raw.toString()); } catch { return; }
-      if (message.message_type === "PARTIAL_TRANSCRIPT") tell({ type: "partial", transcript: message.transcript || "" });
+      if (message.message_type === "SESSION_CREATED") {
+        clearTimeout(sessionTimer);
+        sessionTimer = null;
+        ready = true;
+        drain(false);
+        commit();
+      } else if (message.message_type === "PARTIAL_TRANSCRIPT") tell({ type: "partial", transcript: message.transcript || "" });
       else if (message.message_type === "COMMITTED_TRANSCRIPT") {
         clearTimeout(commitTimer);
+        terminal = true;
         console.info("[latency] transcription", { durationMs: Math.round(performance.now() - startedAt), languageCode, mode: "stream" });
         tell({ type: "final", transcript: (message.transcript_text || "").trim() });
         stop();
-      } else if (/ERROR|EXCEED|EXHAUST|LIMIT/i.test(message.message_type || "")) {
+      } else if (/ERROR|EXCEED|EXHAUST|LIMIT|QUOTA|TOO_SMALL|TOO_LARGE|MISMATCH|INSUFFICIENT/i.test(message.message_type || "")) {
         fail(message.message || `Sahara transcription error: ${message.message_type}`);
       }
     });
     upstream.on("error", (error) => fail(error.message || "The transcription connection failed."));
-    upstream.on("close", () => { if (!committed) fail("The transcription connection closed early."); });
+    upstream.on("close", () => { if (!terminal) fail("The transcription connection closed early."); });
 
     client.on("message", (raw, isBinary) => {
       if (isBinary) {
@@ -113,12 +140,9 @@ export function attachSpeechStream(server, { apiKey, supportedLanguages }) {
       }
       let message;
       try { message = JSON.parse(raw.toString()); } catch { return; }
-      if (message.type !== "commit" || committed) return;
-      committed = true;
-      if (!ready) { fail("The transcription connection was not ready."); return; }
-      drain(true);
-      upstream.send(JSON.stringify({ message_type: "COMMIT" }));
-      commitTimer = setTimeout(() => fail("Sahara did not return a transcript in time."), COMMIT_TIMEOUT_MS);
+      if (message.type !== "commit" || commitRequested) return;
+      commitRequested = true;
+      commit();
     });
     client.on("close", stop);
     client.on("error", stop);

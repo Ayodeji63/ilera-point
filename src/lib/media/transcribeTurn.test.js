@@ -42,4 +42,15 @@ describe("turn transcription", () => {
     await expect(transcribeTurn({ transcriber, blob, language: "en", signal, upload })).rejects.toThrow("aborted");
     expect(upload).not.toHaveBeenCalled();
   });
+
+  it("closes a pending live stream when the turn deadline aborts", async () => {
+    const controller = new AbortController();
+    const transcriber = { commit: () => new Promise(() => {}), close: vi.fn() };
+    const upload = vi.fn();
+    const pending = transcribeTurn({ transcriber, blob, language: "en", signal: controller.signal, upload });
+    controller.abort();
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(transcriber.close).toHaveBeenCalledOnce();
+    expect(upload).not.toHaveBeenCalled();
+  });
 });

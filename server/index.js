@@ -11,7 +11,7 @@ import { resolveSessionVoiceGender } from "./speechVoices.js";
 import { isTransientSaharaFailure, shouldRetrySahara } from "./speechRetry.js";
 import { attachSpeechStream } from "./saharaStt.js";
 import { transcriptionPollDelay } from "./transcriptionPolicy.js";
-import { faceRouter } from "./routes/face.js";
+import { patientsRouter } from "./routes/patients.js";
 import { consultationsRouter } from "./routes/consultations.js";
 import { doctorsRouter } from "./routes/doctors.js";
 import { prescriptionsRouter } from "./routes/prescriptions.js";
@@ -23,7 +23,7 @@ const SUPPORTED_LANGUAGE_CODES = new Set(["en", "yo", "pcm", "ha", "ig"]);
 
 app.use(cors());
 app.use(express.json({ limit: "12mb" }));
-app.use("/api/face", faceRouter);
+app.use("/api/patients", patientsRouter);
 app.use("/api/doctors", doctorsRouter);
 app.use("/api/consultations", consultationsRouter);
 app.use("/api/prescriptions", prescriptionsRouter);
@@ -334,8 +334,8 @@ app.post("/api/speech/synthesize", async (req, res) => {
 });
 
 app.get("/api/health", (_req, res) => {
-  const missing = [!process.env.SAHARA_API_KEY && "SAHARA_API_KEY", !process.env.GEMINI_API_KEY && "GEMINI_API_KEY", !process.env.TENCENT_SECRET_ID && "TENCENT_SECRET_ID", !process.env.TENCENT_SECRET_KEY && "TENCENT_SECRET_KEY", !process.env.SUPABASE_URL && "SUPABASE_URL", !process.env.SUPABASE_SERVICE_ROLE_KEY && "SUPABASE_SERVICE_ROLE_KEY"].filter(Boolean);
-  res.status(missing.length ? 503 : 200).json({ ok: missing.length === 0, speech: "sahara", interview: "gemini", identity: "tencent-face", persistence: "supabase", missing });
+  const missing = [!process.env.SAHARA_API_KEY && "SAHARA_API_KEY", !process.env.GEMINI_API_KEY && "GEMINI_API_KEY", !process.env.SUPABASE_URL && "SUPABASE_URL", !process.env.SUPABASE_SERVICE_ROLE_KEY && "SUPABASE_SERVICE_ROLE_KEY"].filter(Boolean);
+  res.status(missing.length ? 503 : 200).json({ ok: missing.length === 0, speech: "sahara", interview: "gemini", patientAccess: "name-phone", persistence: "supabase", missing });
 });
 
 const server = app.listen(port, () => {

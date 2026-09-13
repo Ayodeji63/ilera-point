@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import WelcomeScreen from "./components/WelcomeScreen";
-import FaceScanScreen from "./components/FaceScanScreen";
+import PatientAccessScreen from "./components/PatientAccessScreen";
 import VideoConsentScreen from "./components/VideoConsentScreen";
 import ConversationScreen from "./components/ConversationScreen";
 import EmergencyScreen from "./components/EmergencyScreen";
@@ -28,7 +28,6 @@ import {
 import { SessionRecorder } from "./lib/media/sessionRecorder";
 import { TurnTranscriber } from "./lib/media/pcmStream";
 import { transcribeTurn } from "./lib/media/transcribeTurn";
-import { preloadFaceRecognition } from "./lib/media/useFaceAutoCapture";
 import { getConsultationResult, saveConsultation } from "./lib/consultations";
 import { getDoctorAccount } from "./lib/doctors";
 
@@ -171,9 +170,6 @@ export default function App() {
     },
     [],
   );
-  useEffect(() => {
-    preloadFaceRecognition();
-  }, []);
   useEffect(() => {
     // Opening a doctor URL directly still has to be resolved against the server;
     // the browser never decides on its own that an account is approved.
@@ -688,9 +684,10 @@ export default function App() {
     );
   if (screen === "yoruba-image-speech")
     return <YorubaImageSpeechScreen onBack={() => navigate("/", "welcome")} />;
-  if (screen === "identify")
+  if (screen === "patient-access")
     return (
-      <FaceScanScreen
+      <PatientAccessScreen
+        onBack={() => setScreen("welcome")}
         onPatient={(found) => {
           setPatient(found);
           setError("");
@@ -771,7 +768,7 @@ export default function App() {
     <WelcomeScreen
       language={language}
       onLanguageChange={setLanguage}
-      onStart={() => setScreen("identify")}
+      onStart={() => setScreen("patient-access")}
       onOpenYorubaTool={() =>
         navigate("/yoruba-image-to-speech", "yoruba-image-speech")
       }

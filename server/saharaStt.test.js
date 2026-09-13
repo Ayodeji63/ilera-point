@@ -26,13 +26,19 @@ describe("Sahara streaming transcription", () => {
 
   it("never sends a message above Sahara's 32KB ceiling", () => {
     const { chunks, rest } = drainChunks(Buffer.alloc(70000));
-    expect(chunks.map((chunk) => chunk.length)).toEqual([32768, 32768]);
+    expect(chunks.map((chunk) => chunk.length)).toEqual([16384, 16384, 16384, 16384]);
     expect(rest).toHaveLength(4464);
   });
 
-  it("flushes the remaining audio when the turn is committed", () => {
+  it("pads a final sub-1KB tail to Sahara's minimum chunk size", () => {
     const { chunks, rest } = drainChunks(Buffer.alloc(900), { flush: true });
-    expect(chunks.map((chunk) => chunk.length)).toEqual([900]);
+    expect(chunks.map((chunk) => chunk.length)).toEqual([1024]);
+    expect(rest).toHaveLength(0);
+  });
+
+  it("flushes a valid final chunk without changing its audio length", () => {
+    const { chunks, rest } = drainChunks(Buffer.alloc(4000), { flush: true });
+    expect(chunks.map((chunk) => chunk.length)).toEqual([4000]);
     expect(rest).toHaveLength(0);
   });
 });
