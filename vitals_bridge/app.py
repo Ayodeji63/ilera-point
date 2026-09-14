@@ -83,18 +83,51 @@ def pulse_result(outcome: dict) -> dict:
 
 
 def temperature_result(readings: list[dict]) -> tuple[dict | None, str | None]:
-    if len(readings) < 3:
-        return None, "The temperature sensor did not return enough valid readings. Face the sensor directly and try again."
+    result, error, _, _ = evaluate_temperature(readings)
+    return result, error
 
+
+def evaluate_temperature(readings: list[dict]) -> tuple[dict | None, str | None, str | None, dict]:
+    """Evaluate a temperature burst and retain enough detail to diagnose rejection."""
     object_values = [reading["object_c"] for reading in readings]
     ambient_values = [reading["ambient_c"] for reading in readings]
+    diagnostics = {
+        "valid_samples": len(readings),
+        "minimum_required": 3,
+        "object_c_min": round(min(object_values), 2) if object_values else None,
+        "object_c_median": round(statistics.median(object_values), 2) if object_values else None,
+        "object_c_max": round(max(object_values), 2) if object_values else None,
+        "object_c_span": round(max(object_values) - min(object_values), 2) if object_values else None,
+        "ambient_c_min": round(min(ambient_values), 2) if ambient_values else None,
+        "ambient_c_median": round(statistics.median(ambient_values), 2) if ambient_values else None,
+        "ambient_c_max": round(max(ambient_values), 2) if ambient_values else None,
+    }
+
+    if len(readings) < 3:
+        return (
+            None,
+            "The temperature sensor did not return enough valid readings. Face the sensor directly and try again.",
+            "insufficient_samples",
+            diagnostics,
+        )
+
     if max(object_values) - min(object_values) > 0.8:
-        return None, "The surface reading changed too much. Hold your forehead still, 2-3 cm from the sensor, and retry."
+        return (
+            None,
+            "The surface reading changed too much. Hold your forehead still, 2-3 cm from the sensor, and retry.",
+            "unstable_surface",
+            diagnostics,
+        )
 
     surface = round(statistics.median(object_values), 1)
     ambient = round(statistics.median(ambient_values), 1)
     if not 27 <= surface <= 40 or surface < ambient + 0.5:
-        return None, "The sensor was not aimed closely enough at skin. Face it directly, 2-3 cm from your forehead, and retry."
+        return (
+            None,
+            "The sensor was not aimed closely enough at skin. Face it directly, 2-3 cm from your forehead, and retry.",
+            "skin_not_detected",
+            diagnostics,
+        )
 
     corrected = None
     if TEMPERATURE_CALIBRATION_A is not None and TEMPERATURE_CALIBRATION_B is not None:
@@ -103,15 +136,20 @@ def temperature_result(readings: list[dict]) -> tuple[dict | None, str | None]:
             corrected = round(candidate, 1)
 
     ambient_ok = AMBIENT_MIN_C <= ambient <= AMBIENT_MAX_C
-    return {
-        "temperature_surface_c": surface,
-        "ambient_temperature_c": ambient,
-        "temperature_c": corrected,
-        "temperature_calibrated": corrected is not None,
-        "temperature_confidence": "good" if ambient_ok else "low",
-        "ambient_warning": None if ambient_ok else "Room conditions may reduce temperature accuracy.",
-        "captured_at": utc_timestamp(),
-    }, None
+    return (
+        {
+            "temperature_surface_c": surface,
+            "ambient_temperature_c": ambient,
+            "temperature_c": corrected,
+            "temperature_calibrated": corrected is not None,
+            "temperature_confidence": "good" if ambient_ok else "low",
+            "ambient_warning": None if ambient_ok else "Room conditions may reduce temperature accuracy.",
+            "captured_at": utc_timestamp(),
+        },
+        None,
+        None,
+        diagnostics,
+    )
 
 
 def log_raw_capture(session_id: str, attempt: int, samples: list[tuple[float, int, int]], outcome: dict) -> None:
@@ -188,7 +226,7 @@ class SensorHardware:
         if not self.temperature_ready:
             raise RuntimeError(self.temperature_error or "The temperature sensor is unavailable.")
         last_error = None
-        for _ in range(4):
+        for attempt in range(1, 5):
             try:
                 with self.temperature_lock:
                     ambient_raw = self.temperature_bus.read_word_data(MLX90614_ADDRESS, MLX90614_AMBIENT)
@@ -197,6 +235,12 @@ class SensorHardware:
                 object_temperature = mlx_celsius(object_raw)
                 if not -10 <= ambient <= 60 or not 20 <= object_temperature <= 45:
                     raise ValueError("Temperature reading was outside the sensor quality range.")
+                if attempt > 1:
+                    print(
+                        f"[vitals] temperature I2C read recovered: "
+                        f"{json.dumps({'attempt': attempt}, separators=(',', ':'))}",
+                        flush=True,
+                    )
                 return {
                     "object_c": round(object_temperature, 1),
                     "ambient_c": round(ambient, 1),
@@ -204,6 +248,11 @@ class SensorHardware:
                 }
             except (OSError, ValueError) as error:
                 last_error = error
+                print(
+                    f"[vitals] temperature I2C read retry {attempt}/4: "
+                    f"{json.dumps({'error_type': type(error).__name__, 'message': str(error)}, separators=(',', ':'))}",
+                    flush=True,
+                )
                 time.sleep(0.08)
         raise RuntimeError(str(last_error or "Temperature sensor did not return a valid reading."))
 
@@ -429,11 +478,33 @@ class CaptureStore:
             time.sleep(0.1)
 
         readings: list[dict] = []
+        failures: list[dict] = []
         for index in range(TEMPERATURE_SAMPLE_COUNT):
             try:
-                readings.append(self.hardware.read_temperature())
-            except RuntimeError:
-                pass
+                reading = self.hardware.read_temperature()
+                readings.append(reading)
+                sample_outcome = {
+                    "session_id": session_id,
+                    "sample": index + 1,
+                    "requested_samples": TEMPERATURE_SAMPLE_COUNT,
+                    "ok": True,
+                    **reading,
+                }
+            except RuntimeError as error:
+                sample_outcome = {
+                    "session_id": session_id,
+                    "sample": index + 1,
+                    "requested_samples": TEMPERATURE_SAMPLE_COUNT,
+                    "ok": False,
+                    "error_type": type(error).__name__,
+                    "message": str(error),
+                }
+                failures.append(sample_outcome)
+            print(
+                f"[vitals] temperature sample {index + 1}/{TEMPERATURE_SAMPLE_COUNT}: "
+                f"{json.dumps(sample_outcome, separators=(',', ':'))}",
+                flush=True,
+            )
             stage_progress = 0.35 + 0.65 * ((index + 1) / TEMPERATURE_SAMPLE_COUNT)
             self.update(
                 session_id,
@@ -444,7 +515,27 @@ class CaptureStore:
             )
             time.sleep(0.4)
 
-        return temperature_result(readings)
+        result, error, reason, diagnostics = evaluate_temperature(readings)
+        outcome = {
+            "session_id": session_id,
+            "success": result is not None,
+            "reason": reason,
+            "requested_samples": TEMPERATURE_SAMPLE_COUNT,
+            "valid_samples": len(readings),
+            "failed_samples": len(failures),
+            "diagnostics": diagnostics,
+        }
+        if failures:
+            outcome["failures"] = failures
+        print(f"[vitals] temperature outcome: {json.dumps(outcome, separators=(',', ':'))}", flush=True)
+        self.update(
+            session_id,
+            temperature_samples_requested=TEMPERATURE_SAMPLE_COUNT,
+            temperature_samples=len(readings),
+            temperature_samples_failed=len(failures),
+            temperature_failure_reason=reason,
+        )
+        return result, error
 
 
 app = Flask(__name__)

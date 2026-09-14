@@ -93,6 +93,14 @@ class FakeTemperatureOnly(FakeHardware):
     temperature_error = None
 
 
+class FakeFlakyTemperature(FakeHardware):
+    def read_temperature(self):
+        self.calls.append("temperature")
+        if len(self.calls) <= 2:
+            raise RuntimeError("[Errno 121] Remote I/O error")
+        return {"object_c": 36.6, "ambient_c": 27.0, "timestamp": "now"}
+
+
 @unittest.skipIf(CaptureStore is None, "Flask bridge dependencies are not installed")
 class CaptureSequenceTests(unittest.TestCase):
     def test_temperature_is_read_only_after_pulse_capture_finishes(self):
@@ -170,6 +178,30 @@ class CaptureSequenceTests(unittest.TestCase):
         self.assertEqual(result["temperature_surface_c"], 32.8)
         self.assertEqual(result["temperature_c"], 36.5)
         self.assertTrue(result["temperature_calibrated"])
+
+    def test_temperature_capture_logs_each_failure_and_summary(self):
+        hardware = FakeFlakyTemperature()
+        store = CaptureStore(hardware)
+        store.sessions["temperature-session"] = {}
+        with (
+            patch("vitals_bridge.app.TEMPERATURE_POSITION_SECONDS", 0),
+            patch("vitals_bridge.app.TEMPERATURE_SAMPLE_COUNT", 3),
+            patch("vitals_bridge.app.time.sleep", return_value=None),
+            patch("builtins.print") as print_mock,
+        ):
+            result, error = store._capture_temperature("temperature-session")
+
+        logs = "\n".join(str(call.args[0]) for call in print_mock.call_args_list)
+        self.assertIsNone(result)
+        self.assertIn("enough valid readings", error)
+        self.assertIn("temperature sample 1/3", logs)
+        self.assertIn("Remote I/O error", logs)
+        self.assertIn('"reason":"insufficient_samples"', logs)
+        self.assertIn('"failed_samples":2', logs)
+        state = store.sessions["temperature-session"]
+        self.assertEqual(state["temperature_samples"], 1)
+        self.assertEqual(state["temperature_samples_failed"], 2)
+        self.assertEqual(state["temperature_failure_reason"], "insufficient_samples")
 
 
 if __name__ == "__main__":
