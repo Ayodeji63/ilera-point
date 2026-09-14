@@ -22,8 +22,13 @@ export function toPcm16(samples) {
 }
 
 export function speechStreamUrl(languageCode, sampleRate, location = window.location) {
-  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  return `${protocol}//${location.host}/api/speech/stream?languageCode=${encodeURIComponent(languageCode)}&sampleRate=${Math.round(sampleRate)}`;
+  // Vercel rewrites proxy HTTP fine but cannot tunnel a WebSocket upgrade to
+  // an external origin. In production, connect directly to the Render API for
+  // this endpoint while preserving the same-origin fallback for local work.
+  const wsOrigin = import.meta.env.VITE_SPEECH_WS_ORIGIN?.trim();
+  const sameOrigin = `${location.protocol === "https:" ? "wss:" : "ws:"}//${location.host}`;
+  const base = (wsOrigin || sameOrigin).replace(/\/+$/, "");
+  return `${base}/api/speech/stream?languageCode=${encodeURIComponent(languageCode)}&sampleRate=${Math.round(sampleRate)}`;
 }
 
 export class TurnTranscriber {
