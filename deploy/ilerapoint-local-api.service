@@ -1,0 +1,21 @@
+[Unit]
+Description=IleraPoint Raspberry Pi sensor API proxy
+After=network.target ilerapoint-vitals.service
+Requires=ilerapoint-vitals.service
+
+[Service]
+Type=simple
+User=__ILERA_USER__
+WorkingDirectory=__ILERA_ROOT__
+Environment=NODE_ENV=production
+Environment=HOST=127.0.0.1
+Environment=PORT=8787
+Environment=LOCAL_VITALS_ONLY=1
+Environment=VITALS_BRIDGE_URL=http://127.0.0.1:8765
+Environment=KIOSK_ORIGIN=__KIOSK_ORIGIN__
+ExecStart=__NODE_BIN__ __ILERA_ROOT__/server/index.js
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

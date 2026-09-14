@@ -22,9 +22,19 @@ import { vitalsRouter } from "./routes/vitals.js";
 const app = express();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 const port = process.env.PORT || 8787;
+const host = process.env.HOST || undefined;
+const localVitalsOnly = process.env.LOCAL_VITALS_ONLY === "1";
 const SUPPORTED_LANGUAGE_CODES = new Set(["en", "yo", "pcm", "ha", "ig"]);
 
-app.use(cors());
+app.use((req, res, next) => {
+  // Kept for Chromium versions that still send the older Private Network
+  // Access preflight in addition to the newer Local Network Access prompt.
+  if (req.get("Access-Control-Request-Private-Network") === "true") {
+    res.set("Access-Control-Allow-Private-Network", "true");
+  }
+  next();
+});
+app.use(cors(process.env.KIOSK_ORIGIN ? { origin: process.env.KIOSK_ORIGIN } : undefined));
 app.use(express.json({ limit: "12mb" }));
 app.use("/api/patients", patientsRouter);
 app.use("/api/doctors", doctorsRouter);
@@ -363,9 +373,9 @@ app.get("/api/health", (_req, res) => {
   res.status(missing.length ? 503 : 200).json({ ok: missing.length === 0, speech: "sahara", interview: "gemini", patientAccess: "name-phone", persistence: "supabase", missing });
 });
 
-const server = app.listen(port, () => {
-  console.log(`IleraPoint API listening on http://localhost:${port}`);
-  if (process.env.SAHARA_API_KEY) {
+const server = app.listen(port, host, () => {
+  console.log(`IleraPoint API listening on http://${host || "localhost"}:${port}`);
+  if (!localVitalsOnly && process.env.SAHARA_API_KEY) {
     // One warm session only: Sahara's stream endpoint allows just a few
     // connections per minute, and an unused warm socket spends one of them.
     prewarmSaharaSession({ voiceAccent: "yoruba", voiceGender: "female", language: "en", apiKey: process.env.SAHARA_API_KEY });
@@ -374,4 +384,6 @@ const server = app.listen(port, () => {
 
 // Live transcription: the browser streams PCM while the patient talks, so the
 // transcript is being built before they finish instead of after.
-attachSpeechStream(server, { apiKey: process.env.SAHARA_API_KEY, supportedLanguages: SUPPORTED_LANGUAGE_CODES });
+if (!localVitalsOnly) {
+  attachSpeechStream(server, { apiKey: process.env.SAHARA_API_KEY, supportedLanguages: SUPPORTED_LANGUAGE_CODES });
+}

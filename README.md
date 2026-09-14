@@ -134,26 +134,54 @@ Run the migrations in order in the Supabase SQL editor or migration CLI: [`0001_
 
 The bridge uses the existing software I2C configuration: MLX90614 at `0x5a` on `/dev/i2c-3` and MAX30102 at `0x57` on `/dev/i2c-4`. It does not access hardware bus 1 or modify audio configuration. The MLX90614 connection enables SMBus PEC, and invalid or failed transactions are rejected instead of becoming temperature measurements.
 
-On the Pi, install the OS packages needed for Python virtual environments and I2C access, then install and start the supplied systemd unit:
+The production kiosk is deliberately split across three places:
+
+- Vercel serves the React interface.
+- Render serves the internet-facing API, speech, Gemini, and Supabase routes through the existing Vercel rewrite.
+- The Raspberry Pi runs the sensor bridge on `127.0.0.1:8765` and a loopback-only Express proxy on `127.0.0.1:8787`. The browser sends only `/api/vitals/*` directly to this local proxy. Render cannot read the Pi's `localhost` or I2C buses.
+
+In the Vercel project, add this Production environment variable, then redeploy because Vite embeds `VITE_*` values at build time:
+
+```text
+VITE_VITALS_API_ORIGIN=http://127.0.0.1:8787
+```
+
+Keep `VITE_SPEECH_WS_ORIGIN=wss://ilera-point.onrender.com` in Vercel as well. Do not add Sahara, Gemini, or Supabase service-role secrets as `VITE_*` variables.
+
+On the Pi, clone or pull the same repository, install the OS packages needed for Python, Node, and I2C access, then install both supplied systemd services:
 
 ```bash
 sudo apt update
-sudo apt install -y python3-venv python3-dev i2c-tools
-./scripts/install-vitals-service.sh
+sudo apt install -y python3-venv python3-dev i2c-tools nodejs npm
+cd /home/pi/ileraPoint
+git pull
+KIOSK_ORIGIN=https://ilera-point.vercel.app ./scripts/install-vitals-service.sh
 ```
 
-The installer creates `.venv`, installs [`vitals_bridge/requirements.txt`](vitals_bridge/requirements.txt), fills the current username and repository path into the service template, enables it at boot, and starts it immediately. Verify it with:
+Replace the `cd` path and Vercel hostname if yours differ. Node.js 20 or newer is required. The installer creates `.venv`, installs Python and production Node dependencies, fills the current username and repository path into both service templates, enables them at boot, and starts them immediately. Log out and back in once after the first install so the new `i2c` group membership also applies to shell diagnostics.
+
+Verify the hardware bridge and browser-facing proxy separately:
 
 ```bash
 curl http://127.0.0.1:8765/health
+curl http://127.0.0.1:8787/api/vitals/health
 sudo journalctl -u ilerapoint-vitals -f
+sudo journalctl -u ilerapoint-local-api -f
 ```
 
-Keep `VITALS_BRIDGE_URL=http://127.0.0.1:8765` in the Express environment. Do not expose port 8765 publicly. For a direct temperature diagnostic only:
+Do not expose ports 8765 or 8787 on the LAN or internet; both services bind to loopback. For a direct temperature diagnostic only:
 
 ```bash
 curl http://127.0.0.1:8765/vitals/temperature
 ```
+
+Open `https://ilera-point.vercel.app` once in a normal Chromium window and choose **Allow** when Chromium asks for Local Network Access, microphone, and camera. Those choices persist in that Chromium profile. Then launch kiosk mode with the same user/profile:
+
+```bash
+chromium --kiosk --no-first-run https://ilera-point.vercel.app
+```
+
+If vitals say the local service is unavailable, first run both `curl` checks above, then inspect Chromium's site permissions for Local Network Access. The rest of the kiosk can continue through Render even when sensor capture is skipped.
 
 ## Hausa diagnostics
 
@@ -180,5 +208,5 @@ The server allows up to 20 seconds for Sahara generation inside a 25-second requ
 
 Patient-turn transcription uses Sahara's asynchronous file endpoint with LLM transcript corrections disabled, an initial status check after 350 ms followed by adaptive backoff up to 1.2 seconds, and a 15-second server deadline. Interview extraction defaults to `GEMINI_MODEL` (`gemini-2.5-flash-lite` unless set) with thinking disabled and a 10-second server deadline. Server logs and `Server-Timing` headers report each stage separately. Repeated question and acknowledgement audio is cached in memory for the lifetime of the API process.
 
-For Raspberry Pi kiosk mode, point Chromium at the Vite/served production URL and launch with `--kiosk` after granting microphone access.
+For Raspberry Pi kiosk mode, use the Vercel URL and grant microphone, camera, and Local Network Access once before launching Chromium with `--kiosk`.
 # ilera-point
