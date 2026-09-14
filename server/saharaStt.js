@@ -1,4 +1,5 @@
 import WebSocket, { WebSocketServer } from "ws";
+import { repairUtf8Mojibake } from "./textEncoding.js";
 
 const SAHARA_STT_STREAM_URL = "wss://infer.voice.intron.io/stt/v1/stream";
 // Sahara accepts 1KB to 32KB of PCM per message. Batch at 16KB, then pad only
@@ -118,12 +119,12 @@ export function attachSpeechStream(server, { apiKey, supportedLanguages }) {
         ready = true;
         drain(false);
         commit();
-      } else if (message.message_type === "PARTIAL_TRANSCRIPT") tell({ type: "partial", transcript: message.transcript || "" });
+      } else if (message.message_type === "PARTIAL_TRANSCRIPT") tell({ type: "partial", transcript: repairUtf8Mojibake(message.transcript || "") });
       else if (message.message_type === "COMMITTED_TRANSCRIPT") {
         clearTimeout(commitTimer);
         terminal = true;
         console.info("[latency] transcription", { durationMs: Math.round(performance.now() - startedAt), languageCode, mode: "stream" });
-        tell({ type: "final", transcript: (message.transcript_text || "").trim() });
+        tell({ type: "final", transcript: repairUtf8Mojibake(message.transcript_text || "").trim() });
         stop();
       } else if (/ERROR|EXCEED|EXHAUST|LIMIT|QUOTA|TOO_SMALL|TOO_LARGE|MISMATCH|INSUFFICIENT/i.test(message.message_type || "")) {
         fail(message.message || `Sahara transcription error: ${message.message_type}`);

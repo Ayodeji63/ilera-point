@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-09-03T00:00:00+01:00",
+  "generatedAt": "2026-09-14T00:00:00+01:00",
   "title": "Design System: IleraPoint",
   "extensions": {
     "colorMeta": {
@@ -48,11 +48,13 @@
       { "name": "welcome-action", "value": "transform 300ms; hover scale(1.025); active scale(0.98)", "purpose": "Confirms the dominant start action without distracting motion." },
       { "name": "listening-ring", "value": "1.8s cubic-bezier(.2,.8,.2,1) infinite; second ring delayed 700ms", "purpose": "Makes active microphone capture unmistakable." },
       { "name": "recording-status-pulse", "value": "pulse; repeating while consented visit capture is active", "purpose": "Keeps the persistent Visit recording indicator noticeable without competing with the current question." },
+      { "name": "vitals-progress", "value": "width 300ms", "purpose": "Keeps the approximately 10-second sensor capture visibly advancing without distracting from the live pulse trace." },
       { "name": "reduced-motion", "value": "animation-duration: 0.01ms; animation-iteration-count: 1", "purpose": "Disables repeating motion when reduced motion is requested." }
     ],
     "breakpoints": [
       { "name": "sm", "value": "640px" },
-      { "name": "md", "value": "768px" }
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
     ]
   },
   "components": [
@@ -96,6 +98,13 @@
       "css": ".ds-card-route { max-width:720px; padding:40px; border-radius:16px; background:#103f33; color:#fff; box-shadow:0 18px 45px rgba(16,63,51,.12); font-family:'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; } .ds-card-route h2 { margin:40px 0 0; max-width:16ch; font-size:clamp(2.4rem,5vw,4.8rem); font-weight:900; line-height:1.02; letter-spacing:-.04em; text-wrap:balance; } .ds-card-route p { margin:20px 0 0; color:#b8d5cc; font-size:18px; font-weight:600; line-height:1.6; } .ds-route-label { color:#b8d5cc; font-size:14px; font-weight:900; letter-spacing:.12em; }"
     },
     {
+      "name": "Vitals Capture Board",
+      "kind": "custom",
+      "description": "The optional pre-interview sensor stage: physical guidance and live waveform on dark green, with status, progress, and skip on white.",
+      "html": "<section class=\"ds-vitals\"><div class=\"ds-vitals-copy\"><h2>Hold still while we check your body.</h2><p>Keep your finger flat on the pulse sensor and your forehead 2–5 cm from the temperature sensor.</p></div><div class=\"ds-vitals-state\" aria-live=\"polite\"><div><h3>Signal found — keep still.</h3><p>The pulse needs several steady beats. Capture finishes automatically.</p><div class=\"ds-vitals-track\" role=\"progressbar\" aria-label=\"Capture 42% complete\" aria-valuemin=\"0\" aria-valuemax=\"100\" aria-valuenow=\"42\"><span></span></div><strong>42% · reading your pulse</strong></div><button>Skip this check</button></div><div class=\"ds-vitals-wave\" role=\"img\" aria-label=\"Live pulse signal\"><svg viewBox=\"0 0 100 40\" preserveAspectRatio=\"none\" aria-hidden=\"true\"><path d=\"M0 20H100\"/><polyline points=\"0,20 8,6 16,34 24,20 32,6 40,34 48,20 56,6 64,34 72,20 80,6 88,34 96,20 100,12\"/></svg></div></section>",
+      "css": ".ds-vitals { display:grid; grid-template-columns:1.05fr .95fr; width:min(100%,1072px); overflow:hidden; border-radius:16px; background:#103f33; box-shadow:0 16px 40px rgba(16,63,51,.10); color:#103f33; font-family:'Atkinson Hyperlegible Next Variable','Segoe UI',sans-serif; } .ds-vitals-copy { grid-column:1; padding:40px 40px 0; color:#fff; } .ds-vitals-copy h2,.ds-vitals-state h3,.ds-vitals-copy p,.ds-vitals-state p { margin:0; } .ds-vitals-copy h2 { max-width:12ch; font-size:52px; font-weight:900; line-height:.96; letter-spacing:-.04em; } .ds-vitals-copy p { margin-top:22px; color:#b8d5cc; font-size:18px; font-weight:700; line-height:1.6; } .ds-vitals-wave { grid-column:1; height:144px; margin:28px 40px 40px; overflow:hidden; border-radius:14px; background:#082f27; } .ds-vitals-wave svg { width:100%; height:100%; } .ds-vitals-wave path { fill:none; stroke:rgba(184,213,204,.18); stroke-width:.5; } .ds-vitals-wave polyline { fill:none; stroke:#f2d533; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; vector-effect:non-scaling-stroke; } .ds-vitals-state { display:flex; grid-column:2; grid-row:1/3; min-height:480px; flex-direction:column; justify-content:space-between; padding:40px; background:#fff; } .ds-vitals-state h3 { font-size:36px; font-weight:900; line-height:1.1; letter-spacing:-.04em; } .ds-vitals-state p { margin-top:16px; color:#527269; font-size:18px; font-weight:700; line-height:1.6; } .ds-vitals-track { height:12px; margin-top:30px; overflow:hidden; border-radius:9999px; background:#e3e7e3; } .ds-vitals-track span { display:block; width:42%; height:100%; background:#1d6e59; transition:width 300ms; } .ds-vitals-state strong { display:block; margin-top:12px; color:#1d6e59; } .ds-vitals-state button { min-height:56px; padding:12px 24px; border:0; border-radius:14px; background:#e7f1ed; color:#155944; font-size:16px; font-weight:900; cursor:pointer; } .ds-vitals-state button:hover { transform:translateY(-1px); } .ds-vitals-state button:active { transform:scale(.98); } .ds-vitals-state button:focus-visible { outline:4px solid #0a78ff; outline-offset:4px; } @media(max-width:1023px){.ds-vitals{grid-template-columns:1fr}.ds-vitals-copy{grid-column:1;grid-row:1;padding:28px 28px 0}.ds-vitals-copy h2{font-size:42px}.ds-vitals-state{grid-column:1;grid-row:2;min-height:0;margin:24px 28px 0;padding:24px;border-radius:14px}.ds-vitals-state button{margin-top:24px}.ds-vitals-wave{grid-column:1;grid-row:3;margin:24px 28px 28px}.ds-vitals-state h3{font-size:30px}}"
+    },
+    {
       "name": "Visit Recording Indicator",
       "kind": "chip",
       "refersTo": "status-recording",
@@ -128,7 +137,7 @@
   ],
   "narrative": {
     "northStar": "The Care Route Board",
-    "overview": "IleraPoint makes a clinical intake feel like following a clear, human route rather than completing a form. Its visual world borrows the certainty of wayfinding: one dominant instruction, visible route choices, plain-language progress, oversized directional controls, and high-contrast panels that can be read at kiosk distance. The same board language spans patient record access, new-patient signup, informed recording consent, voice intake, clinician review, and a deliberately separate prescription stage.\n\nThe atmosphere is calm but not timid. Deep clinic green provides institutional trust, sunlit yellow identifies the next physical action, and chalk-toned backgrounds keep the environment warm and public-facing. Strong type, sparse choices, and grounded panels prioritize low-literacy clarity without making the experience childish.",
+    "overview": "IleraPoint makes a clinical intake feel like following a clear, human route rather than completing a form. Its visual world borrows the certainty of wayfinding: one dominant instruction, visible route choices, plain-language progress, oversized directional controls, and high-contrast panels that can be read at kiosk distance. The same board language spans patient record access, new-patient signup, informed recording consent, sensor-based vitals capture, voice intake, clinician review, and a deliberately separate prescription stage.\n\nThe atmosphere is calm but not timid. Deep clinic green provides institutional trust, sunlit yellow identifies the next physical action, and chalk-toned backgrounds keep the environment warm and public-facing. Strong type, sparse choices, and grounded panels prioritize low-literacy clarity without making the experience childish.",
     "keyCharacteristics": [
       "Oversized wayfinding copy with one obvious action per stage.",
       "Clinic green structure, sunlit yellow direction, and chalk-white breathing room.",
@@ -136,6 +145,7 @@
       "Bold, hyperlegible type designed for standing distance and touch-first use.",
       "Persistent visible status, saved-answer count, deterministic correction controls, transcription, consent state, and multilingual reassurance.",
       "A two-route record board: name or phone lookup for returning patients and details-first signup for new patients.",
+      "A short, skippable vitals board with physical positioning guidance, live pulse feedback, and a single yellow continuation after success.",
       "A denser but visually related doctor workspace with an oldest-first queue, evidence-first case review, and prescription as a separate committing step."
     ],
     "rules": [
@@ -148,6 +158,7 @@
       { "name": "The Circle Has Meaning Rule", "body": "Use circles for voice, progress, and compact status—not as a generic card silhouette. The contrast between circular actions and squared information panels makes the route scannable.", "section": "shapes" },
       { "name": "The Explicit Choice Rule", "body": "A returning patient always chooses a displayed record; the kiosk never guesses between possible matches.", "section": "components" },
       { "name": "The Details Before Interview Rule", "body": "New-patient details must be saved before recording consent and conversation.", "section": "components" },
+      { "name": "The Measurements Are Supporting Evidence Rule", "body": "Sensor values must be labeled as measured information for clinician review, never as a diagnosis, clearance, or autonomous safety decision.", "section": "components" },
       { "name": "The Evidence Before Action Rule", "body": "Clinician decisions follow the record, transcript, and available recording in reading order. Status and safety information must never rely on color alone.", "section": "components" },
       { "name": "The Prescribing Is a Commitment Rule", "body": "Do not collapse prescription fields into the case action rail or style them as a quick inline note. The dedicated stage makes clinician authorship and completion consequence explicit.", "section": "components" }
     ],
@@ -163,6 +174,8 @@
       "Do preserve separate returning- and new-patient routes; save new-patient details before conversation.",
       "Do let returning patients search by either name or phone and choose an explicit result.",
       "Do present recording consent as a dedicated, balanced choice and keep the consented recording indicator persistent during intake.",
+      "Do keep vitals status, progress, and Skip in the first mobile viewport; preserve retry and continue-without-vitals recovery when capture fails.",
+      "Do use one yellow route-forward action only after a stable temperature and heart-rate capture, and repeat those readings in patient summary and clinician review.",
       "Do keep clinician queue order, patient-reported evidence, recording availability, and urgent status explicit in text.",
       "Do preserve prescription as a separate stage with patient context, a clear return path, and one completion action."
     ],
@@ -174,6 +187,8 @@
       "Don't replace the route-board contrast with glass effects, gradients, or ornamental shadows.",
       "Don't use circles indiscriminately; preserve them for voice, progress, and status semantics.",
       "Don't make video consent appear required for receiving care or imply that recorded video receives AI analysis.",
+      "Don't block the health interview on sensor availability, hide the skip path, or present temperature and heart rate as a diagnosis.",
+      "Don't display, persist, or imply SpO₂ from the uncalibrated sensor path.",
       "Don't merge returning-patient lookup and new-patient signup into one ambiguous form or let a new patient reach conversation before signup.",
       "Don't merge clinician review and prescribing into one dense surface or imply that the patient-reported record is a diagnosis."
     ]

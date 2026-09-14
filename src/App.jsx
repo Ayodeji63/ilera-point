@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import WelcomeScreen from "./components/WelcomeScreen";
 import PatientAccessScreen from "./components/PatientAccessScreen";
 import VideoConsentScreen from "./components/VideoConsentScreen";
+import VitalsScreen from "./components/VitalsScreen";
 import ConversationScreen from "./components/ConversationScreen";
 import EmergencyScreen from "./components/EmergencyScreen";
 import SummaryScreen from "./components/SummaryScreen";
@@ -90,7 +91,10 @@ function prescriptionSpeech(prescription, languageCode) {
 }
 
 function summaryText(record) {
-  return `Here is what we heard. Your main concern is ${record.chief_complaints.join(", ") || "not recorded"}. It started ${record.onset || "at an unspecified time"}. Other symptoms are ${record.associated_symptoms.join(", ") || "not recorded"}. Your medication history is ${record.medication_history || "not recorded"}. A clinician will review this information.`;
+  const vitals = record.vitals
+    ? `Your measured temperature was ${record.vitals.temperature_c} degrees Celsius and your heart rate was ${record.vitals.heart_rate_bpm} beats per minute.`
+    : "No sensor measurements were captured.";
+  return `Here is what we heard. Your main concern is ${record.chief_complaints.join(", ") || "not recorded"}. It started ${record.onset || "at an unspecified time"}. Other symptoms are ${record.associated_symptoms.join(", ") || "not recorded"}. Your medication history is ${record.medication_history || "not recorded"}. ${vitals} A clinician will review this information.`;
 }
 
 export default function App() {
@@ -374,13 +378,20 @@ export default function App() {
       const question = FIRST_QUESTIONS[language];
       applySession(createInterviewSession(question));
       setTypedAnswer("");
-      setScreen("conversation");
-      scheduleSpeech(question, true);
+      setScreen("vitals");
     } catch (e) {
       setError(e.message || "Camera or microphone access was blocked.");
     } finally {
       setStatus("idle");
     }
+  };
+  const continueFromVitals = (vitals) => {
+    const current = sessionRef.current;
+    if (!current) return;
+    const next = { ...current, record: { ...current.record, vitals } };
+    applySession(next);
+    setScreen("conversation");
+    scheduleSpeech(next.current_question, true);
   };
   const stopSessionRecording = async () => {
     if (media.current.stream) videoBlob.current = await media.current.finish();
@@ -704,6 +715,8 @@ export default function App() {
         onChoice={beginInterview}
       />
     );
+  if (screen === "vitals" && session)
+    return <VitalsScreen patient={patient} onContinue={continueFromVitals} />;
   if (screen === "emergency")
     return (
       <EmergencyScreen triggers={triggers} status={status} error={error} />

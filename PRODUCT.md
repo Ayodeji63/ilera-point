@@ -18,7 +18,7 @@ Secondary users are authenticated doctors who review the structured intake recor
 
 ## Product Purpose
 
-IleraPoint lets patients find or create a record using their name or phone, conducts a short voice-led intake, checks deterministic emergency red flags, records the session only with explicit consent, and sends the corrected record to an authenticated doctor for human review and prescribing.
+IleraPoint lets patients find or create a record using their name or phone, offers a short sensor-based temperature and heart-rate check, conducts a voice-led intake, checks deterministic emergency red flags, records the session only with explicit consent, and sends the corrected record to an authenticated doctor for human review and prescribing.
 
 ## Positioning
 
@@ -26,7 +26,7 @@ IleraPoint combines code-switched African speech handling, a single-turn-per-res
 
 ## Operating Context
 
-The product is used on a shared full-screen kiosk in a clinic or community health setting. Patient identity, consultations, consent choices, and prescriptions persist in Supabase. Doctors work in protected routes in the same web application.
+The product is used on a shared full-screen kiosk in a clinic or community health setting. Raspberry Pi-class kiosks can connect to an MLX90614 temperature sensor and MAX30102 pulse sensor through a Python service bound to localhost and proxied by the application server. Patient identity, consultations, consent choices, sensor readings, and prescriptions persist in Supabase. Doctors work in protected routes in the same web application.
 
 ## Capabilities and Constraints
 
@@ -45,8 +45,12 @@ The product is used on a shared full-screen kiosk in a clinic or community healt
 - Returning patients search records by name or phone; new patients register their details before the interview.
 - The kiosk performs no biometric identification and captures no photograph during patient record access.
 - Continuous 640×480 audio/video recording is opt-in, normalized to `video/webm`, and stored privately for human clinician review only.
-- Supabase persists patients, consultations, doctors, prescriptions, and corrected turn history.
-- Doctors authenticate with email/password, review an oldest-first queue, approve or flag cases, and issue plain-text prescriptions.
+- After recording consent and before the voice interview, the kiosk automatically attempts an approximately 10-second MLX90614 temperature and MAX30102 heart-rate capture with live pulse status, progress, signal waveform, positioning guidance, and a visible skip path.
+- Unstable or unavailable sensor captures remain recoverable: patients can retry after repositioning or continue without vitals, and skipping never blocks the interview.
+- Successful sensor capture is stored inside `structured_record.vitals` as `temperature_c`, `heart_rate_bpm`, `captured_at`, `confidence`, and `sample_quality`; the same temperature and heart-rate readings appear in the patient summary and clinician case review.
+- SpO₂ is not displayed, stored, or implied because the available pulse-oximeter path is not calibrated for that measurement.
+- Supabase persists patients, consultations, doctors, prescriptions, corrected turn history, and any captured vitals within the structured consultation record.
+- Doctors authenticate with email/password, review an oldest-first queue including captured temperature and heart rate when present, approve or flag cases, and issue plain-text prescriptions.
 - No AI video analysis, live video calls, drug interaction checks, pharmacy inventory, diagnosis, autonomous prescribing, or dispensing.
 
 ## Brand Commitments

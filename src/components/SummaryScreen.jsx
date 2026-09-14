@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Check, Pencil, RotateCcw, Save, Stethoscope, Volume2, X } from "lucide-react";
+import { Activity, Check, Pencil, RotateCcw, Save, Stethoscope, Thermometer, Volume2, X } from "lucide-react";
 import BrandHeader from "./BrandHeader";
 
 function EditableRow({ field, label, value, displayValue, array = false, onSave }) {
@@ -31,6 +31,13 @@ export default function SummaryScreen({ record, onUpdateRecord, onSpeak, speakin
           <EditableRow field="negative_symptoms_checked" label="Symptoms denied" value={record.negative_symptoms_checked} displayValue={record.negative_symptoms_checked.length ? `You reported no ${record.negative_symptoms_checked.join(" or ")}.` : "Not checked"} array onSave={onUpdateRecord} />
           <EditableRow field="medication_history" label="Medicines" value={record.medication_history || ""} displayValue={record.medication_history} onSave={onUpdateRecord} />
         </dl>
+        <div className="mt-6 bg-[#e7f1ed] p-5 text-[#103f33] md:flex md:items-center md:justify-between">
+          <div><h2 className="text-xl font-black">Sensor measurements</h2><p className="mt-1 font-semibold text-[#527269]">{record.vitals ? "Automatically captured for clinician review." : "No sensor measurements were captured during this visit."}</p></div>
+          {record.vitals ? <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-3 md:mt-0">
+            <div className="flex items-center gap-3"><Thermometer className="text-[#1d6e59]" /><div><dt className="text-sm font-black text-[#527269]">Temperature</dt><dd className="text-xl font-black">{record.vitals.temperature_c} °C</dd></div></div>
+            <div className="flex items-center gap-3"><Activity className="text-[#1d6e59]" /><div><dt className="text-sm font-black text-[#527269]">Heart rate</dt><dd className="text-xl font-black">{record.vitals.heart_rate_bpm} bpm</dd></div></div>
+          </dl> : <p className="mt-4 font-black text-[#527269] md:mt-0">Not captured</p>}
+        </div>
         {record.still_missing.length > 0 && <p className="mt-6 rounded-[14px] bg-[#fff2c7] p-5 font-bold text-[#6d5510]">A clinician may still ask about: {record.still_missing.join(", ")}.</p>}
         {error && <div role="alert" className="mt-6 rounded-[14px] bg-[#fff0e8] p-5 font-bold text-[#8b311f]">{error} Your answers are still on this screen; please try again.</div>}
         <div className="mt-8 flex flex-col gap-3 sm:flex-row"><button disabled={saving} onClick={onReview} className="flex min-h-16 flex-1 items-center justify-center gap-3 rounded-[14px] bg-[#103f33] px-6 text-lg font-black text-white disabled:opacity-60"><Stethoscope />{saving ? "Sending securely…" : "Everything is correct — send to doctor"}</button><button disabled={saving} onClick={onReset} className="flex min-h-16 items-center justify-center gap-3 rounded-[14px] bg-white px-6 font-black text-[#103f33] shadow-[0_10px_25px_rgba(16,63,51,.08)] disabled:opacity-60"><RotateCcw />Start again</button></div>

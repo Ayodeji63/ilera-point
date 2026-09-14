@@ -4,6 +4,7 @@ export const EMPTY_RECORD = {
   associated_symptoms: [],
   negative_symptoms_checked: [],
   medication_history: "",
+  vitals: null,
   still_missing: ["main concern", "onset", "associated symptoms", "medication history"],
 };
 
@@ -13,6 +14,7 @@ function copyRecord(record) {
     chief_complaints: [...(record.chief_complaints || [])],
     associated_symptoms: [...(record.associated_symptoms || [])],
     negative_symptoms_checked: [...(record.negative_symptoms_checked || [])],
+    vitals: record.vitals ? { ...record.vitals } : null,
     still_missing: [...(record.still_missing || [])],
   };
 }

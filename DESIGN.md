@@ -191,7 +191,7 @@ components:
 
 **Creative North Star: "The Care Route Board"**
 
-IleraPoint makes a clinical intake feel like following a clear, human route rather than completing a form. Its visual world borrows the certainty of wayfinding: one dominant instruction, visible route choices, plain-language progress, oversized directional controls, and high-contrast panels that can be read at kiosk distance. The same board language now spans patient record access, new-patient signup, informed recording consent, voice intake, the public Yoruba image-to-speech utility, clinician review, and a deliberately separate prescription stage.
+IleraPoint makes a clinical intake feel like following a clear, human route rather than completing a form. Its visual world borrows the certainty of wayfinding: one dominant instruction, visible route choices, plain-language progress, oversized directional controls, and high-contrast panels that can be read at kiosk distance. The same board language now spans patient record access, new-patient signup, informed recording consent, sensor-based vitals capture, voice intake, the public Yoruba image-to-speech utility, clinician review, and a deliberately separate prescription stage.
 
 The atmosphere is calm but not timid. Deep clinic green provides institutional trust, sunlit yellow identifies the next physical action, and chalk-toned backgrounds keep the environment warm and public-facing. Strong type, sparse choices, and grounded panels prioritize low-literacy clarity without making the experience childish.
 
@@ -203,6 +203,7 @@ The atmosphere is calm but not timid. Deep clinic green provides institutional t
 - Bold, hyperlegible type designed for standing distance and touch-first use.
 - Persistent visible status, saved-answer count, deterministic correction controls, transcription, consent state, and multilingual reassurance.
 - A two-route record board: name/phone lookup for returning patients and details-first signup for new patients.
+- A short, skippable vitals board with physical positioning guidance, live pulse feedback, and a single yellow continuation after success.
 - A public, no-auth Yoruba image-to-speech workspace that pairs source imagery with editable text and playable output.
 - A denser but visually related doctor workspace with an oldest-first queue, evidence-first case review, and prescription as a separate committing step.
 
@@ -271,6 +272,8 @@ The palette pairs deep, dependable greens with a warm yellow route marker; coral
 ## Layout
 
 Patient screens occupy the full dynamic viewport. Content sits inside centered containers up to 1380px wide with 20px mobile gutters and 40px desktop gutters. The welcome and conversation stages become two-column boards at the medium breakpoint: roughly balanced copy/action on welcome, and a 1.15/0.85 route-panel-to-notes split during the interview. Patient record access uses a 1120px two-column board: route guidance on clinic green and returning/new-patient forms on paper white. Consent narrows to a single 1024px two-column decision board. Summary content narrows to 1024px.
+
+Vitals capture sits in a 1152px container as one joined board. At the large breakpoint, a 1.05/0.95 split places dark physical instructions, positioning cards, and the live yellow waveform on the left, with capture state, progress, readings, and recovery actions on white at right. Below that breakpoint the state-and-action card moves directly beneath the instruction within the dark panel, before the positioning cards and waveform, so live status, progress, and Skip remain in the first mobile viewport. The desktop state column maintains a 560px working height and anchors actions at its base.
 
 The public Yoruba image-to-speech route uses a 1280px work area and one joined two-panel board. At large widths, the dark upload/preview panel takes 0.9fr and the white transcription/audio panel takes 1.1fr; below the large breakpoint they stack in source-to-output order. Both panels keep a 520px minimum working height on wide layouts, while action buttons stack by default and share a row from the small breakpoint upward. On mobile, both grid children and the image preview explicitly permit shrinking and clip accidental spill; filenames and cast names truncate, capability copy wraps anywhere when necessary, and each voice-control pair remains intact so no content forces horizontal page overflow.
 
@@ -360,6 +363,16 @@ Consent is a dedicated route stage, not a checkbox buried in intake. A clinic-gr
 
 When consent is granted, a fixed bottom-left oxblood pill remains visible throughout the conversation with a pulsing white dot, video icon, and the exact label “Visit recording.” The indicator uses status semantics and reduced-motion behavior; it never substitutes for the prior consent decision.
 
+### Vitals Capture
+
+Vitals is a brief, optional route stage after recording consent and before the first voice question. The joined board gives the dominant dark side to one physical instruction: keep a finger flat over the pulse sensor and hold the forehead 2–5 cm from the temperature sensor. Two translucent positioning cards reinforce each placement, while a dark inset plot draws the live pulse trace in sunlit yellow. The waveform is status evidence, not decoration: its accessible label distinguishes waiting from a live signal.
+
+The white state surface uses an assertive heading, plain-language support, a route-green progress bar, and a textual percentage or waiting state. On mobile this entire surface, including **Skip this check**, moves above the positioning cards so capture status and recovery remain visible without scrolling. Successful capture replaces progress with temperature, heart rate, and signal quality; its only dominant action is the yellow **Continue to health questions** button. A recoverable error uses the established error wash, offers the clinic-green **Try the sensors again** action, and keeps **Continue without vitals** as a full-size pale-green alternative.
+
+Captured readings appear again in a pale-green sensor-measurements band on the patient summary and near the top of the clinician case record. These surfaces show temperature and heart rate as supporting measurements, not diagnoses. Signal quality may support clinician interpretation; internal confidence and capture time remain record metadata. Do not display SpO₂ unless a separately calibrated and validated measurement path is introduced.
+
+**The Measurements Are Supporting Evidence Rule.** Sensor values must be labeled as measured information for clinician review, never as a diagnosis, clearance, or autonomous safety decision.
+
 ### Yoruba Image-to-Speech Workspace
 
 The public `/yoruba-image-to-speech` route extends the care board into a focused source-to-output utility without requiring authentication. A prominent back action returns to check-in. The dark clinic-green source panel accepts click-to-upload or drag-and-drop JPG, PNG, and WebP images up to 8 MB; its dashed 14px-corner drop zone becomes a camera-deep preview field with a yellow border after selection, then shows the filename, file size, and a 48px remove control.
@@ -384,7 +397,7 @@ For a mixed-gender cast, Sahara generation runs the male and female voice groups
 
 ### Doctor Queue & Case Review
 
-The authenticated clinician workspace keeps the board’s green, chalk, type, radius, and depth vocabulary while allowing denser reading. The queue is an oldest-first, full-width list with patient, time, chief complaint, urgent status, and a clear row arrow; refresh and sign-out remain compact utilities above it. Each case separates patient-reported record and transcript from consented video evidence, repeats emergency status in text, and groups Approve, Flag follow-up, and Continue to prescription in the evidence rail.
+The authenticated clinician workspace keeps the board’s green, chalk, type, radius, and depth vocabulary while allowing denser reading. The queue is an oldest-first, full-width list with patient, time, chief complaint, urgent status, and a clear row arrow; refresh and sign-out remain compact utilities above it. Each case presents captured temperature, heart rate, and signal quality when available, then separates patient-reported record and transcript from consented video evidence, repeats emergency status in text, and groups Approve, Flag follow-up, and Continue to prescription in the evidence rail.
 
 **The Evidence Before Action Rule.** Clinician decisions follow the record, transcript, and available recording in reading order. Status and safety information must never rely on color alone.
 
@@ -409,6 +422,8 @@ Prescription is a separate route at `/doctor/case/:id/prescribe`, with its own h
 - **Do** preserve separate returning- and new-patient routes; save new-patient details before conversation.
 - **Do** let returning patients search by either name or phone and choose an explicit result.
 - **Do** present recording consent as a dedicated, balanced choice and keep the consented recording indicator persistent during intake.
+- **Do** keep vitals status, progress, and Skip in the first mobile viewport; preserve retry and continue-without-vitals recovery when capture fails.
+- **Do** use one yellow route-forward action only after a stable temperature and heart-rate capture, and repeat those readings in patient summary and clinician review.
 - **Do** keep the Yoruba utility’s image source and editable transcription visibly paired, preserving tone marks and line breaks in the review state.
 - **Do** reserve sunlit yellow for the ready-state **Download WAV** finish and expose OCR, generation, validation, and service states in text.
 - **Do** distinguish image reading from orthography restoration, and retain editable raw OCR when the restoration stage fails.
@@ -426,6 +441,8 @@ Prescription is a separate route at `/doctor/case/:id/prescribe`, with its own h
 - **Don't** replace the route-board contrast with glass effects, gradients, or ornamental shadows.
 - **Don't** use circles indiscriminately; preserve them for voice, progress, and status semantics.
 - **Don't** make video consent appear required for receiving care or imply that recorded video receives AI analysis.
+- **Don't** block the health interview on sensor availability, hide the skip path, or present temperature and heart rate as a diagnosis.
+- **Don't** display, persist, or imply SpO₂ from the uncalibrated sensor path.
 - **Don't** merge returning-patient lookup and new-patient signup into one ambiguous form or let a new patient reach conversation before signup.
 - **Don't** hide Yoruba transcription behind audio generation, retain stale audio after text edits, or require authentication for the public converter.
 - **Don't** flatten screenplay structure, read character headings aloud, split the final result into separate gender tracks, or let cast controls overflow the mobile viewport.

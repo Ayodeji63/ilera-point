@@ -1,0 +1,15 @@
+[Unit]
+Description=IleraPoint local vitals sensor bridge
+After=network.target
+
+[Service]
+Type=simple
+User=__ILERA_USER__
+WorkingDirectory=__ILERA_ROOT__
+Environment=PYTHONUNBUFFERED=1
+ExecStart=__ILERA_ROOT__/.venv/bin/python -m vitals_bridge.app
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

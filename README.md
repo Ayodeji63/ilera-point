@@ -35,6 +35,8 @@ Open `http://localhost:5173/yoruba-image-to-speech` directly; this public utilit
 - New patients enter their name and optional phone number, create a record, and continue directly to recording consent.
 - No photograph or biometric information is captured, processed, transmitted, or stored.
 - A separate consent screen explains full-session video, private clinician access, and the right to continue without video.
+- After consent, the kiosk automatically runs a 10-second local vitals capture. The patient keeps one finger flat on the MAX30102 and their forehead 2–5 cm from the MLX90614 while a live pulse waveform and progress state show signal quality. A failed reading can be retried or skipped and never blocks the interview.
+- Successful readings are stored in `structured_record.vitals` as `temperature_c`, `heart_rate_bpm`, `captured_at`, `confidence`, and `sample_quality`, then shown on the patient summary and clinician case view. SpO₂ is intentionally omitted until the device output has been calibrated against a clinical reference.
 - Accepted consent starts one modest 640×480 stream used by both per-turn audio recording and continuous audio/video recording. A persistent red indicator remains visible throughout recording. After each spoken question, listening starts automatically; local voice activity detection waits for speech and submits the answer after about 2.6 seconds of silence so thinking pauses are not cut off, while typing remains available.
 - On completion, the corrected record, complete turn history, consent choice, red-flag state, and any recording are saved. Browser recording blobs are normalized to `video/webm` before upload so Supabase Storage never receives a browser-generated `text/plain` MIME type. Video objects are private and only delivered through short-lived signed URLs.
 - Emergency flow: say or type `I have chest pain` to trigger the deterministic safety screen immediately after Gemini updates the record.
@@ -117,12 +119,41 @@ Self-service signup needs working email delivery: the project requires email con
 - `server/routes/consultations.js`: private Storage upload, consultation persistence, doctor queue/case reads, and signed video URLs.
 - `server/routes/prescriptions.js`: authenticated prescription writes and completion status.
 - `src/lib/media/sessionRecorder.js`: one media stream for per-turn audio clips, automatic speech/silence detection, and consented continuous recording.
+- `vitals_bridge/app.py`: localhost-only Flask service that owns the MLX90614 on I2C bus 3 and MAX30102 on bus 4 for the lifetime of the process.
+- `vitals_bridge/signal.py`: dependency-free temperature conversion, waveform normalization, peak detection, BPM, confidence, and signal-quality calculations.
+- `server/routes/vitals.js`: thin `/api/vitals/*` proxy to the local bridge, keeping sensor ports and CORS out of the browser.
+- `src/components/VitalsScreen.jsx`: automatic capture instructions, live waveform feedback, result, retry, and non-blocking skip states.
 - `src/lib/safety/redFlags.js`: deterministic red-flag function, invoked after every interview turn.
 - Supabase holds patients, consultations, doctors, and prescriptions. Patient access uses name or phone only.
 
 ## Supabase setup
 
 Run the migrations in order in the Supabase SQL editor or migration CLI: [`0001_ilera_v3.sql`](supabase/migrations/0001_ilera_v3.sql) creates the tables, [`0002_doctor_onboarding.sql`](supabase/migrations/0002_doctor_onboarding.sql) adds doctor approval columns, [`0003_patient_collection.sql`](supabase/migrations/0003_patient_collection.sql) adds the patient collection token, [`0004_task_shifting.sql`](supabase/migrations/0004_task_shifting.sql) adds clinician roles and case routing, [`0005_prescription_safety.sql`](supabase/migrations/0005_prescription_safety.sql) records interaction overrides, [`0006_escalation_alerts.sql`](supabase/migrations/0006_escalation_alerts.sql) creates the private alert-audio bucket, and [`0007_remove_biometric_identity.sql`](supabase/migrations/0007_remove_biometric_identity.sql) removes legacy provider-reference columns from upgraded databases. If a migration is missing at runtime the API says which file to run rather than failing opaquely. The migrations create the V3 tables, indexes, status constraints, RLS, and private WebM-only `consultation-videos` bucket with a 50 MB object limit. The Express server uses the service-role key; never place that key in a `VITE_` variable. The browser receives only the project URL and anon key for Supabase Auth.
+
+## Raspberry Pi vitals bridge
+
+The bridge uses the existing software I2C configuration: MLX90614 at `0x5a` on `/dev/i2c-3` and MAX30102 at `0x57` on `/dev/i2c-4`. It does not access hardware bus 1 or modify audio configuration. The MLX90614 connection enables SMBus PEC, and invalid or failed transactions are rejected instead of becoming temperature measurements.
+
+On the Pi, install the OS packages needed for Python virtual environments and I2C access, then install and start the supplied systemd unit:
+
+```bash
+sudo apt update
+sudo apt install -y python3-venv python3-dev i2c-tools
+./scripts/install-vitals-service.sh
+```
+
+The installer creates `.venv`, installs [`vitals_bridge/requirements.txt`](vitals_bridge/requirements.txt), fills the current username and repository path into the service template, enables it at boot, and starts it immediately. Verify it with:
+
+```bash
+curl http://127.0.0.1:8765/health
+sudo journalctl -u ilerapoint-vitals -f
+```
+
+Keep `VITALS_BRIDGE_URL=http://127.0.0.1:8765` in the Express environment. Do not expose port 8765 publicly. For a direct temperature diagnostic only:
+
+```bash
+curl http://127.0.0.1:8765/vitals/temperature
+```
 
 ## Hausa diagnostics
 

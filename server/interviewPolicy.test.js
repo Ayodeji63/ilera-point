@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_INTERVIEW_TURNS, questionsAreSimilar, selectNextQuestion, shouldCompleteInterview } from "./interviewPolicy";
+import { MAX_INTERVIEW_TURNS, isExplicitDenial, questionTopic, questionsAreSimilar, reconcileStillMissing, selectNextQuestion, shouldCompleteInterview } from "./interviewPolicy";
 
 describe("interview completion policy", () => {
   it("completes naturally from turn two when nothing is missing", () => {
@@ -31,5 +31,24 @@ describe("interview completion policy", () => {
     expect(selectNextQuestion("", [], ["onset"], "pcm")).toMatch(/start|how long/i);
     expect(selectNextQuestion("", [], ["onset"], "ha")).toMatch(/Yaushe|Har yaushe/);
     expect(selectNextQuestion("", [], ["onset"], "ig")).toMatch(/Kedu mgbe|Ogologo oge/);
+  });
+
+  it("treats a clear Yoruba denial as a completed associated-symptoms topic", () => {
+    const turns = [{ question_asked: "Àwọn àmì àìsàn mìíràn wo ni o ti rí?", transcript: "Kò sí àìsàn mìíràn rárá." }];
+    const record = { associated_symptoms: [], still_missing: ["associated symptoms", "medication history"] };
+
+    expect(questionTopic(turns[0].question_asked)).toBe("symptoms");
+    expect(isExplicitDenial(turns[0].transcript)).toBe(true);
+    expect(reconcileStillMissing(record, turns)).toEqual(["medication history"]);
+  });
+
+  it("rejects a new symptoms question when medication is the next missing topic", () => {
+    expect(selectNextQuestion("Is there any other symptom?", [], ["medication history"], "en"))
+      .toMatch(/medicine/i);
+  });
+
+  it("uses a topic-safe fallback when a generated question cannot be classified", () => {
+    expect(selectNextQuestion("Can you tell me a little more?", [], ["associated symptoms"], "en"))
+      .toMatch(/other symptoms|what else/i);
   });
 });

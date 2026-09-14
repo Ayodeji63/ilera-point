@@ -47,6 +47,22 @@ function normalizeQuestion(value = "") {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().match(/[\p{L}\p{N}]+/gu)?.join(" ") || "";
 }
 
+export function questionTopic(question = "") {
+  const value = normalizeQuestion(question);
+  if (/breath|chest|faint|bleed|seiz|isoro mimi|irora aya|didaku|eje pupo|girigiri|wahalar numfashi|ciwon kirji|zubar jini|farfadiya|iku ume|mgbu obi|ododo/.test(value)) return "negatives";
+  if (/medicin|medication|drug|dose|dosage|oogun|magani|ogwu/.test(value)) return "medication";
+  if (/when.*start|how long|did.*start|igba wo|bere|yaushe|har yaushe|kedu mgbe|ogologo oge/.test(value)) return "onset";
+  if (/other symptom|other sign|what else.*feel|anything else|ami aisan miiran|aisan miiran|aisan mii|ohun miiran|sauran alamomi|mgbaama ndi ozo|wetin else|which other sign/.test(value)) return "symptoms";
+  if (/main health|main problem|main concern|health problem|sickness.*bring|isoro ailera pataki|babban matsalar|isi nsogbu/.test(value)) return "chief";
+  return "other";
+}
+
+export function isExplicitDenial(answer = "") {
+  const value = normalizeQuestion(answer);
+  return /\b(no|none|nothing|no other|not any)\b/.test(value)
+    || /\bko si\b|\brara\b|\bbabu\b|\ba a\b|\bo dighi\b|\bodighi\b|\bno get\b/.test(value);
+}
+
 export function questionsAreSimilar(left, right) {
   const a = new Set(normalizeQuestion(left).split(" ").filter(Boolean));
   const b = new Set(normalizeQuestion(right).split(" ").filter(Boolean));
@@ -67,11 +83,31 @@ function topicForMissing(stillMissing = []) {
   return "other";
 }
 
+function missingIsTopic(item, topic) {
+  return topicForMissing([item]) === topic;
+}
+
+// Empty associated symptoms is a complete answer when the patient explicitly
+// said there are none. The model must not turn an empty array back into a prompt
+// to ask the same topic indefinitely.
+export function reconcileStillMissing(record, turns = []) {
+  const missing = Array.isArray(record?.still_missing) ? record.still_missing : [];
+  const symptomsRecorded = Array.isArray(record?.associated_symptoms) && record.associated_symptoms.length > 0;
+  const symptomsDenied = turns.some((turn) => questionTopic(turn.question_asked) === "symptoms" && isExplicitDenial(turn.transcript));
+  if (!symptomsRecorded && !symptomsDenied) return [...missing];
+  return missing.filter((item) => !missingIsTopic(item, "symptoms"));
+}
+
 export function selectNextQuestion(candidate, turns, stillMissing, languageCode = "en") {
   const previousQuestions = turns.map((turn) => turn.question_asked);
   const repeated = previousQuestions.some((question) => questionsAreSimilar(candidate, question));
   const tooLong = candidate.trim().length > 150 || (candidate.match(/\?/g) || []).length > 1;
-  if (candidate.trim() && !repeated && !tooLong) return candidate.trim();
+  const expectedTopic = topicForMissing(stillMissing);
+  const candidateTopic = questionTopic(candidate);
+  // When a known clinical field is missing, an unclassified creative rewording
+  // is not safe to pass through: it may be another version of an answered topic.
+  const wrongTopic = expectedTopic !== "other" && candidateTopic !== expectedTopic;
+  if (candidate.trim() && !repeated && !tooLong && !wrongTopic) return candidate.trim();
 
   const language = QUESTIONS[languageCode] ? languageCode : "en";
   const variants = QUESTIONS[language][topicForMissing(stillMissing)];

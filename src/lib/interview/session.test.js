@@ -31,4 +31,17 @@ describe("interview session", () => {
     expect(cleared.record.still_missing).toContain("medication history");
     expect(cleared.record.still_missing).toContain("pain severity");
   });
+
+  it("keeps hardware vitals in record snapshots", () => {
+    const initial = createInterviewSession("What brings you in today?");
+    initial.record.vitals = { temperature_c: 36.6, heart_rate_bpm: 72, captured_at: "2026-09-14T00:00:00Z" };
+    const turn = createTurn(initial, "Fever");
+    const committed = commitInterviewTurn(initial, turn, {
+      record: { ...initial.record, chief_complaints: ["fever"] },
+      next_question: "When did it start?",
+    });
+
+    expect(committed.record.vitals).toEqual(initial.record.vitals);
+    expect(committed.record.vitals).not.toBe(initial.record.vitals);
+  });
 });
