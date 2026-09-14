@@ -35,7 +35,8 @@ Open `http://localhost:5173/yoruba-image-to-speech` directly; this public utilit
 - New patients enter their name and optional phone number, create a record, and continue directly to recording consent.
 - No photograph or biometric information is captured, processed, transmitted, or stored.
 - A separate consent screen explains full-session video, private clinician access, and the right to continue without video.
-- After consent, the kiosk automatically runs a 10-second local vitals capture. The patient keeps one finger flat on the MAX30102 and their forehead 2–5 cm from the MLX90614 while a live pulse waveform and progress state show signal quality. A failed reading can be retried or skipped and never blocks the interview.
+- After consent, the kiosk measures pulse and temperature one after the other. It first waits for stable finger contact, captures a timestamped 10-second MAX30102 window, discards the contact transient, validates periodicity/motion/contact, and automatically retries once when needed. It then asks the patient to remove their finger and separately captures several stable MLX90614 forehead readings.
+- A single failed sensor no longer discards the other measurement: the patient may continue with a trustworthy partial result, retry both checks, or skip without blocking the interview.
 - Successful readings are stored in `structured_record.vitals` as `temperature_c`, `heart_rate_bpm`, `captured_at`, `confidence`, and `sample_quality`, then shown on the patient summary and clinician case view. SpO₂ is intentionally omitted until the device output has been calibrated against a clinical reference.
 - Accepted consent starts one modest 640×480 stream used by both per-turn audio recording and continuous audio/video recording. A persistent red indicator remains visible throughout recording. After each spoken question, listening starts automatically; local voice activity detection waits for speech and submits the answer after about 2.6 seconds of silence so thinking pauses are not cut off, while typing remains available.
 - On completion, the corrected record, complete turn history, consent choice, red-flag state, and any recording are saved. Browser recording blobs are normalized to `video/webm` before upload so Supabase Storage never receives a browser-generated `text/plain` MIME type. Video objects are private and only delivered through short-lived signed URLs.
@@ -174,6 +175,8 @@ Do not expose ports 8765 or 8787 on the LAN or internet; both services bind to l
 ```bash
 curl http://127.0.0.1:8765/vitals/temperature
 ```
+
+The vitals systemd unit keeps at most 20 identity-free raw pulse buffers in `/var/lib/ilerapoint-vitals/captures`. Each CSV contains elapsed timestamps plus red and IR samples and begins with the estimator outcome and diagnostics. Use these captures to compare at least 5–10 trials against a reference pulse oximeter or a timed manual pulse before tuning thresholds. The service never calculates or stores SpO₂; a clinical-looking SpO₂ value must wait for paired, per-device calibration data.
 
 Open `https://ilera-point.vercel.app` once in a normal Chromium window and choose **Allow** when Chromium asks for Local Network Access, microphone, and camera. Those choices persist in that Chromium profile. Then launch kiosk mode with the same user/profile:
 

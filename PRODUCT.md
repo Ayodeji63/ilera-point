@@ -45,9 +45,10 @@ The product is used on a shared full-screen kiosk in a clinic or community healt
 - Returning patients search records by name or phone; new patients register their details before the interview.
 - The kiosk performs no biometric identification and captures no photograph during patient record access.
 - Continuous 640×480 audio/video recording is opt-in, normalized to `video/webm`, and stored privately for human clinician review only.
-- After recording consent and before the voice interview, the kiosk automatically attempts an approximately 10-second MLX90614 temperature and MAX30102 heart-rate capture with live pulse status, progress, signal waveform, positioning guidance, and a visible skip path.
-- Unstable or unavailable sensor captures remain recoverable: patients can retry after repositioning or continue without vitals, and skipping never blocks the interview.
-- Successful sensor capture is stored inside `structured_record.vitals` as `temperature_c`, `heart_rate_bpm`, `captured_at`, `confidence`, and `sample_quality`; the same temperature and heart-rate readings appear in the patient summary and clinician case review.
+- After recording consent and before the voice interview, the kiosk measures vitals sequentially: a timestamped 10-second MAX30102 pulse window first, then a separate multi-sample MLX90614 forehead-temperature stage. The patient is never asked to position for both sensors simultaneously.
+- Pulse processing discards the contact transient, detrends the IR signal, enforces physiologic peak spacing, checks inter-beat consistency, rejects weak contact and motion, and makes one automatic retry before returning an explicit reason rather than a guessed BPM.
+- Unstable or unavailable sensor captures remain recoverable: the second sensor still runs when the first fails, trustworthy partial results may continue to clinician review, and patients can retry both checks or continue without vitals.
+- Captured sensor output is stored inside `structured_record.vitals` as the available `temperature_c` and/or `heart_rate_bpm`, plus `captured_at`, pulse `confidence`, and `sample_quality`; available readings appear in the patient summary and clinician case review without rendering missing values as measurements.
 - SpO₂ is not displayed, stored, or implied because the available pulse-oximeter path is not calibrated for that measurement.
 - Supabase persists patients, consultations, doctors, prescriptions, corrected turn history, and any captured vitals within the structured consultation record.
 - Doctors authenticate with email/password, review an oldest-first queue including captured temperature and heart rate when present, approve or flag cases, and issue plain-text prescriptions.

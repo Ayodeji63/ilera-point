@@ -1,4 +1,4 @@
-const CAPTURE_TIMEOUT_MS = 22000;
+const CAPTURE_TIMEOUT_MS = 42000;
 const DEFAULT_VITALS_ORIGIN = "http://127.0.0.1:8787";
 
 function configuredVitalsOrigin() {
@@ -52,7 +52,7 @@ export async function captureVitals({ onUpdate = () => {}, signal, fetchImpl = f
     await wait(pollMs, signal);
     const state = await responseBody(await vitalsFetch(fetchImpl, `/api/vitals/session/${encodeURIComponent(started.session_id)}`, { signal }));
     onUpdate(state);
-    if (state.status === "complete" && state.result) return state.result;
+    if (["complete", "partial"].includes(state.status) && state.result) return state.result;
     if (state.status === "error") throw new Error(state.error || "A stable reading was not captured.");
   }
   throw new Error("The sensors could not get a stable reading in time.");

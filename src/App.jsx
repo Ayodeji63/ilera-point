@@ -91,9 +91,11 @@ function prescriptionSpeech(prescription, languageCode) {
 }
 
 function summaryText(record) {
-  const vitals = record.vitals
-    ? `Your measured temperature was ${record.vitals.temperature_c} degrees Celsius and your heart rate was ${record.vitals.heart_rate_bpm} beats per minute.`
-    : "No sensor measurements were captured.";
+  const measurements = record.vitals ? [
+    record.vitals.temperature_c != null ? `your measured temperature was ${record.vitals.temperature_c} degrees Celsius` : "",
+    record.vitals.heart_rate_bpm != null ? `your heart rate was ${record.vitals.heart_rate_bpm} beats per minute` : "",
+  ].filter(Boolean) : [];
+  const vitals = measurements.length ? `${measurements.join(" and ")}.` : "No sensor measurements were captured.";
   return `Here is what we heard. Your main concern is ${record.chief_complaints.join(", ") || "not recorded"}. It started ${record.onset || "at an unspecified time"}. Other symptoms are ${record.associated_symptoms.join(", ") || "not recorded"}. Your medication history is ${record.medication_history || "not recorded"}. ${vitals} A clinician will review this information.`;
 }
 

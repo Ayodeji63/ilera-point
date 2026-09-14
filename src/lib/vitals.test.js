@@ -44,4 +44,13 @@ describe("vitals capture client", () => {
 
     await expect(captureVitals({ fetchImpl, pollMs: 0 })).rejects.toThrow("Keep your finger still");
   });
+
+  it("returns a partial result when one sensor produced a trustworthy reading", async () => {
+    const result = { temperature_c: 36.5, heart_rate_bpm: null, sample_quality: "none" };
+    const fetchImpl = vi.fn()
+      .mockResolvedValueOnce(reply({ session_id: "capture-4" }))
+      .mockResolvedValueOnce(reply({ status: "partial", warnings: ["Pulse unavailable."], result }));
+
+    await expect(captureVitals({ fetchImpl, pollMs: 0 })).resolves.toEqual(result);
+  });
 });
