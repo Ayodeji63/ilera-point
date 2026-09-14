@@ -17,7 +17,7 @@ describe("vitals capture client", () => {
     await expect(captureVitals({ fetchImpl, pollMs: 0, onUpdate: (state) => updates.push(state) })).resolves.toEqual(result);
     expect(fetchImpl).toHaveBeenLastCalledWith(
       "http://127.0.0.1:8787/api/vitals/session/capture-1",
-      { signal: undefined, targetAddressSpace: "local" },
+      { signal: undefined, targetAddressSpace: "loopback" },
     );
     expect(updates).toHaveLength(2);
   });
@@ -33,7 +33,7 @@ describe("vitals capture client", () => {
 
     expect(fetchImpl).toHaveBeenLastCalledWith(
       "http://127.0.0.1:8877/api/vitals/session/capture-3",
-      { signal: undefined, targetAddressSpace: "local" },
+      { signal: undefined, targetAddressSpace: "loopback" },
     );
   });
 

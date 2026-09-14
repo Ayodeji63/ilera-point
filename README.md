@@ -140,7 +140,7 @@ The production kiosk is deliberately split across three places:
 - Render serves the internet-facing API, speech, Gemini, and Supabase routes through the existing Vercel rewrite.
 - The Raspberry Pi runs the sensor bridge on `127.0.0.1:8765` and a loopback-only Express proxy on `127.0.0.1:8787`. The browser sends only `/api/vitals/*` directly to this local proxy. Render cannot read the Pi's `localhost` or I2C buses.
 
-The browser defaults to the Pi-local address below. You may also add it as a Production environment variable in Vercel if you want the address to be explicit or need to override the port:
+The browser defaults to the Pi-local address below. Requests identify it to modern Chromium as the `loopback` address space (not the broader `local` LAN address space). You may also add it as a Production environment variable in Vercel if you want the address to be explicit or need to override the port:
 
 ```text
 VITE_VITALS_API_ORIGIN=http://127.0.0.1:8787

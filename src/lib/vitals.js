@@ -13,9 +13,10 @@ function vitalsFetch(fetchImpl, path, options = {}) {
   const origin = configuredVitalsOrigin();
   return fetchImpl(`${origin}${path}`, {
     ...options,
-    // Chromium uses this hint when an HTTPS Vercel page talks to the kiosk's
-    // loopback service. The patient still grants Local Network Access once.
-    ...(origin ? { targetAddressSpace: "local" } : {}),
+    // Chromium 146+ classifies 127.0.0.1 separately from LAN addresses. An
+    // explicit "local" hint rejects a loopback connection before CORS or the
+    // permission allowlist runs, so this must match the loopback destination.
+    ...(origin ? { targetAddressSpace: "loopback" } : {}),
   });
 }
 
