@@ -1,7 +1,8 @@
 const CAPTURE_TIMEOUT_MS = 22000;
+const DEFAULT_VITALS_ORIGIN = "http://127.0.0.1:8787";
 
 function configuredVitalsOrigin() {
-  return (import.meta.env.VITE_VITALS_API_ORIGIN || "").trim().replace(/\/+$/, "");
+  return (import.meta.env.VITE_VITALS_API_ORIGIN || DEFAULT_VITALS_ORIGIN).trim().replace(/\/+$/, "");
 }
 
 export function vitalsUrl(path) {

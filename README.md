@@ -140,13 +140,13 @@ The production kiosk is deliberately split across three places:
 - Render serves the internet-facing API, speech, Gemini, and Supabase routes through the existing Vercel rewrite.
 - The Raspberry Pi runs the sensor bridge on `127.0.0.1:8765` and a loopback-only Express proxy on `127.0.0.1:8787`. The browser sends only `/api/vitals/*` directly to this local proxy. Render cannot read the Pi's `localhost` or I2C buses.
 
-In the Vercel project, add this Production environment variable, then redeploy because Vite embeds `VITE_*` values at build time:
+The browser defaults to the Pi-local address below. You may also add it as a Production environment variable in Vercel if you want the address to be explicit or need to override the port:
 
 ```text
 VITE_VITALS_API_ORIGIN=http://127.0.0.1:8787
 ```
 
-Keep `VITE_SPEECH_WS_ORIGIN=wss://ilera-point.onrender.com` in Vercel as well. Do not add Sahara, Gemini, or Supabase service-role secrets as `VITE_*` variables.
+Redeploy after changing any Vercel variable because Vite embeds `VITE_*` values at build time. Keep `VITE_SPEECH_WS_ORIGIN=wss://ilera-point.onrender.com` in Vercel as well. Do not add Sahara, Gemini, or Supabase service-role secrets as `VITE_*` variables.
 
 On the Pi, clone or pull the same repository, install the OS packages needed for Python, Node, and I2C access, then install both supplied systemd services:
 

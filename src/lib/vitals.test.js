@@ -15,13 +15,16 @@ describe("vitals capture client", () => {
     const updates = [];
 
     await expect(captureVitals({ fetchImpl, pollMs: 0, onUpdate: (state) => updates.push(state) })).resolves.toEqual(result);
-    expect(fetchImpl).toHaveBeenLastCalledWith("/api/vitals/session/capture-1", { signal: undefined });
+    expect(fetchImpl).toHaveBeenLastCalledWith(
+      "http://127.0.0.1:8787/api/vitals/session/capture-1",
+      { signal: undefined, targetAddressSpace: "local" },
+    );
     expect(updates).toHaveLength(2);
   });
 
-  it("routes sensor calls directly to the Raspberry Pi when deployed on Vercel", async () => {
-    vi.stubEnv("VITE_VITALS_API_ORIGIN", "http://127.0.0.1:8787/");
-    expect(vitalsUrl("/api/vitals/health")).toBe("http://127.0.0.1:8787/api/vitals/health");
+  it("allows a different Raspberry Pi loopback endpoint to be configured", async () => {
+    vi.stubEnv("VITE_VITALS_API_ORIGIN", "http://127.0.0.1:8877/");
+    expect(vitalsUrl("/api/vitals/health")).toBe("http://127.0.0.1:8877/api/vitals/health");
 
     const fetchImpl = vi.fn()
       .mockResolvedValueOnce(reply({ session_id: "capture-3" }))
@@ -29,7 +32,7 @@ describe("vitals capture client", () => {
     await captureVitals({ fetchImpl, pollMs: 0 });
 
     expect(fetchImpl).toHaveBeenLastCalledWith(
-      "http://127.0.0.1:8787/api/vitals/session/capture-3",
+      "http://127.0.0.1:8877/api/vitals/session/capture-3",
       { signal: undefined, targetAddressSpace: "local" },
     );
   });
