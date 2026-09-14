@@ -43,11 +43,75 @@ PULSE_ERROR_MESSAGES = {
     "insufficient_peaks": "Not enough consistent heart beats were detected. Keep your finger still and try again.",
     "insufficient_samples": "The pulse sensor did not provide enough usable samples.",
     "implausible_rate": "The pulse pattern was outside the supported measurement range.",
+    "low_confidence": "The pulse pattern was not clear enough to report safely. Rest your hand and try again.",
 }
+
+
+def optional_env_float(name: str) -> float | None:
+    value = os.environ.get(name, "").strip()
+    return float(value) if value else None
+
+
+SPO2_CALIBRATION_A = optional_env_float("VITALS_SPO2_CALIBRATION_A")
+SPO2_CALIBRATION_B = optional_env_float("VITALS_SPO2_CALIBRATION_B")
+TEMPERATURE_CALIBRATION_A = optional_env_float("VITALS_TEMPERATURE_CALIBRATION_A")
+TEMPERATURE_CALIBRATION_B = optional_env_float("VITALS_TEMPERATURE_CALIBRATION_B")
+AMBIENT_MIN_C = float(os.environ.get("VITALS_AMBIENT_MIN_C", "18"))
+AMBIENT_MAX_C = float(os.environ.get("VITALS_AMBIENT_MAX_C", "32"))
 
 
 def utc_timestamp() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def pulse_result(outcome: dict) -> dict:
+    ratio = outcome.get("diagnostics", {}).get("spo2_ratio")
+    spo2 = None
+    if ratio is not None and SPO2_CALIBRATION_A is not None and SPO2_CALIBRATION_B is not None:
+        candidate = SPO2_CALIBRATION_A - SPO2_CALIBRATION_B * ratio
+        if 70 <= candidate <= 100:
+            spo2 = round(candidate)
+    return {
+        "heart_rate_bpm": outcome["heart_rate_bpm"],
+        "spo2_percent": spo2,
+        "spo2_ratio": ratio,
+        "spo2_calibrated": spo2 is not None,
+        "confidence": outcome["confidence"],
+        "sample_quality": outcome["sample_quality"],
+        "captured_at": utc_timestamp(),
+    }
+
+
+def temperature_result(readings: list[dict]) -> tuple[dict | None, str | None]:
+    if len(readings) < 3:
+        return None, "The temperature sensor did not return enough valid readings. Face the sensor directly and try again."
+
+    object_values = [reading["object_c"] for reading in readings]
+    ambient_values = [reading["ambient_c"] for reading in readings]
+    if max(object_values) - min(object_values) > 0.8:
+        return None, "The surface reading changed too much. Hold your forehead still, 2-3 cm from the sensor, and retry."
+
+    surface = round(statistics.median(object_values), 1)
+    ambient = round(statistics.median(ambient_values), 1)
+    if not 27 <= surface <= 40 or surface < ambient + 0.5:
+        return None, "The sensor was not aimed closely enough at skin. Face it directly, 2-3 cm from your forehead, and retry."
+
+    corrected = None
+    if TEMPERATURE_CALIBRATION_A is not None and TEMPERATURE_CALIBRATION_B is not None:
+        candidate = TEMPERATURE_CALIBRATION_A * surface + TEMPERATURE_CALIBRATION_B
+        if 32 <= candidate <= 43:
+            corrected = round(candidate, 1)
+
+    ambient_ok = AMBIENT_MIN_C <= ambient <= AMBIENT_MAX_C
+    return {
+        "temperature_surface_c": surface,
+        "ambient_temperature_c": ambient,
+        "temperature_c": corrected,
+        "temperature_calibrated": corrected is not None,
+        "temperature_confidence": "good" if ambient_ok else "low",
+        "ambient_warning": None if ambient_ok else "Room conditions may reduce temperature accuracy.",
+        "captured_at": utc_timestamp(),
+    }, None
 
 
 def log_raw_capture(session_id: str, attempt: int, samples: list[tuple[float, int, int]], outcome: dict) -> None:
@@ -157,13 +221,15 @@ class CaptureStore:
         self.lock = threading.Lock()
         self.capture_lock = threading.Lock()
 
-    def start(self) -> dict:
+    def start(self, stage: str = "all") -> dict:
+        if stage not in {"all", "pulse", "temperature"}:
+            raise ValueError("Unknown vitals capture stage.")
         session_id = str(uuid.uuid4())
         state = {
             "session_id": session_id,
             "status": "capturing",
-            "stage": "pulse",
-            "phase": "waiting_for_finger",
+            "stage": "pulse" if stage == "all" else stage,
+            "phase": "waiting_for_finger" if stage in {"all", "pulse"} else "position_forehead",
             "progress": 0,
             "stage_progress": 0,
             "pulse_attempt": 1,
@@ -175,7 +241,7 @@ class CaptureStore:
         }
         with self.lock:
             self.sessions[session_id] = state
-        threading.Thread(target=self._capture, args=(session_id,), daemon=True).start()
+        threading.Thread(target=self._capture, args=(session_id, stage), daemon=True).start()
         return state.copy()
 
     def get(self, session_id: str) -> dict | None:
@@ -188,7 +254,7 @@ class CaptureStore:
             if session_id in self.sessions:
                 self.sessions[session_id].update(values)
 
-    def _capture(self, session_id: str) -> None:
+    def _capture(self, session_id: str, stage: str = "all") -> None:
         if not self.hardware.ready:
             self.update(session_id, status="error", error=self.hardware.initialization_error or "Vitals sensors are unavailable.")
             return
@@ -198,6 +264,29 @@ class CaptureStore:
         try:
             pulse_ready = getattr(self.hardware, "pulse_ready", self.hardware.ready)
             temperature_ready = getattr(self.hardware, "temperature_ready", self.hardware.ready)
+
+            if stage == "pulse":
+                if not pulse_ready:
+                    self.update(session_id, status="error", error=getattr(self.hardware, "pulse_error", None) or "The pulse sensor is unavailable.")
+                    return
+                pulse, error = self._capture_pulse(session_id)
+                if not pulse:
+                    self.update(session_id, status="error", progress=1, error=error)
+                    return
+                self.update(session_id, status="complete", stage="complete", phase="complete", progress=1, stage_progress=1, result=pulse_result(pulse))
+                return
+
+            if stage == "temperature":
+                if not temperature_ready:
+                    self.update(session_id, status="error", error=getattr(self.hardware, "temperature_error", None) or "The temperature sensor is unavailable.")
+                    return
+                temperature, error = self._capture_temperature(session_id)
+                if not temperature:
+                    self.update(session_id, status="error", progress=1, error=error)
+                    return
+                self.update(session_id, status="complete", stage="complete", phase="complete", progress=1, stage_progress=1, result=temperature)
+                return
+
             pulse, pulse_error = (
                 self._capture_pulse(session_id)
                 if pulse_ready
@@ -214,10 +303,12 @@ class CaptureStore:
                 return
 
             result = {
-                "temperature_c": temperature,
-                "heart_rate_bpm": pulse.get("heart_rate_bpm") if pulse else None,
-                "confidence": pulse.get("confidence", 0.0) if pulse else 0.0,
-                "sample_quality": pulse.get("sample_quality", "none") if pulse else "none",
+                "heart_rate_bpm": None,
+                "spo2_percent": None,
+                "temperature_c": None,
+                "temperature_surface_c": None,
+                **(pulse_result(pulse) if pulse else {}),
+                **(temperature if temperature else {}),
                 "captured_at": utc_timestamp(),
             }
             self.update(
@@ -302,7 +393,7 @@ class CaptureStore:
                     signal_level=infrared,
                     waveform=waveform(recent_ir),
                     stage_progress=stage_progress,
-                    progress=0.72 * ((attempt - 1 + stage_progress) / PULSE_MAX_ATTEMPTS),
+                    progress=(attempt - 1 + stage_progress) / PULSE_MAX_ATTEMPTS,
                 )
                 time.sleep(max(0, SAMPLE_INTERVAL_SECONDS - (time.monotonic() - now)))
 
@@ -320,7 +411,7 @@ class CaptureStore:
 
         return None, PULSE_ERROR_MESSAGES.get(last_reason, "A trustworthy pulse reading could not be captured.")
 
-    def _capture_temperature(self, session_id: str) -> tuple[float | None, str | None]:
+    def _capture_temperature(self, session_id: str) -> tuple[dict | None, str | None]:
         self.update(
             session_id,
             stage="temperature",
@@ -328,13 +419,13 @@ class CaptureStore:
             finger_present=False,
             waveform=[],
             stage_progress=0,
-            progress=0.72,
+            progress=0,
         )
         positioned_at = time.monotonic()
         while time.monotonic() - positioned_at < TEMPERATURE_POSITION_SECONDS:
             elapsed = time.monotonic() - positioned_at
             stage_progress = min(0.35, 0.35 * elapsed / TEMPERATURE_POSITION_SECONDS)
-            self.update(session_id, stage_progress=stage_progress, progress=0.72 + 0.28 * stage_progress)
+            self.update(session_id, stage_progress=stage_progress, progress=stage_progress)
             time.sleep(0.1)
 
         readings: list[dict] = []
@@ -348,20 +439,12 @@ class CaptureStore:
                 session_id,
                 phase="measuring",
                 stage_progress=stage_progress,
-                progress=0.72 + 0.28 * stage_progress,
+                progress=stage_progress,
                 temperature_samples=len(readings),
             )
             time.sleep(0.4)
 
-        if len(readings) < 3:
-            return None, "The temperature sensor did not return enough valid readings. Hold your forehead 2–5 cm away and retry."
-        values = [reading["object_c"] for reading in readings]
-        if max(values) - min(values) > 1.0:
-            return None, "The temperature changed too much. Hold your forehead close and still, then retry."
-        temperature = round(statistics.median(values), 1)
-        if not 30 <= temperature <= 43:
-            return None, "The temperature sensor was not aimed at skin. Hold your forehead 2–5 cm away and retry."
-        return temperature, None
+        return temperature_result(readings)
 
 
 app = Flask(__name__)
@@ -394,6 +477,20 @@ def start_session():
     if not hardware.ready:
         return jsonify({"error": hardware.initialization_error or "Vitals sensors are unavailable."}), 503
     return jsonify(captures.start()), 202
+
+
+@app.post("/vitals/pulse/session")
+def start_pulse_session():
+    if not hardware.pulse_ready:
+        return jsonify({"error": hardware.pulse_error or "The pulse sensor is unavailable."}), 503
+    return jsonify(captures.start("pulse")), 202
+
+
+@app.post("/vitals/temperature/session")
+def start_temperature_session():
+    if not hardware.temperature_ready:
+        return jsonify({"error": hardware.temperature_error or "The temperature sensor is unavailable."}), 503
+    return jsonify(captures.start("temperature")), 202
 
 
 @app.get("/vitals/session/<session_id>")

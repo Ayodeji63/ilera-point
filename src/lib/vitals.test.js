@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { captureVitals, vitalsUrl } from "./vitals";
+import { capturePulseVitals, captureTemperatureVitals, captureVitals, vitalsUrl } from "./vitals";
 
 const reply = (body, ok = true) => ({ ok, json: async () => body });
 
@@ -52,5 +52,20 @@ describe("vitals capture client", () => {
       .mockResolvedValueOnce(reply({ status: "partial", warnings: ["Pulse unavailable."], result }));
 
     await expect(captureVitals({ fetchImpl, pollMs: 0 })).resolves.toEqual(result);
+  });
+
+  it("starts pulse and temperature as separate, patient-triggered sessions", async () => {
+    const pulseFetch = vi.fn()
+      .mockResolvedValueOnce(reply({ session_id: "pulse-1" }))
+      .mockResolvedValueOnce(reply({ status: "complete", result: { heart_rate_bpm: 71 } }));
+    const temperatureFetch = vi.fn()
+      .mockResolvedValueOnce(reply({ session_id: "temperature-1" }))
+      .mockResolvedValueOnce(reply({ status: "complete", result: { temperature_surface_c: 32.4 } }));
+
+    await capturePulseVitals({ fetchImpl: pulseFetch, pollMs: 0 });
+    await captureTemperatureVitals({ fetchImpl: temperatureFetch, pollMs: 0 });
+
+    expect(pulseFetch.mock.calls[0][0]).toBe("http://127.0.0.1:8787/api/vitals/pulse/session");
+    expect(temperatureFetch.mock.calls[0][0]).toBe("http://127.0.0.1:8787/api/vitals/temperature/session");
   });
 });

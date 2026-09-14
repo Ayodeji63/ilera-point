@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Activity, Check, Pencil, RotateCcw, Save, Stethoscope, Thermometer, Volume2, X } from "lucide-react";
+import { Activity, Check, Pencil, RotateCcw, Save, Stethoscope, Thermometer, Volume2, Wind, X } from "lucide-react";
 import BrandHeader from "./BrandHeader";
 
 function EditableRow({ field, label, value, displayValue, array = false, onSave }) {
@@ -35,7 +35,9 @@ export default function SummaryScreen({ record, onUpdateRecord, onSpeak, speakin
           <div><h2 className="text-xl font-black">Sensor measurements</h2><p className="mt-1 font-semibold text-[#527269]">{record.vitals ? "Automatically captured for clinician review." : "No sensor measurements were captured during this visit."}</p></div>
           {record.vitals ? <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-3 md:mt-0">
             {record.vitals.temperature_c != null && <div className="flex items-center gap-3"><Thermometer className="text-[#1d6e59]" /><div><dt className="text-sm font-black text-[#527269]">Temperature</dt><dd className="text-xl font-black">{record.vitals.temperature_c} °C</dd></div></div>}
+            {record.vitals.temperature_c == null && record.vitals.temperature_surface_c != null && <div className="flex items-center gap-3"><Thermometer className="text-[#6d5510]" /><div><dt className="text-sm font-black text-[#6d5510]">Uncalibrated surface reading</dt><dd className="text-xl font-black">{record.vitals.temperature_surface_c} °C</dd></div></div>}
             {record.vitals.heart_rate_bpm != null && <div className="flex items-center gap-3"><Activity className="text-[#1d6e59]" /><div><dt className="text-sm font-black text-[#527269]">Heart rate</dt><dd className="text-xl font-black">{record.vitals.heart_rate_bpm} bpm</dd></div></div>}
+            {record.vitals.spo2_percent != null && <div className="flex items-center gap-3"><Wind className="text-[#1d6e59]" /><div><dt className="text-sm font-black text-[#527269]">Oxygen saturation</dt><dd className="text-xl font-black">{record.vitals.spo2_percent}%</dd></div></div>}
           </dl> : <p className="mt-4 font-black text-[#527269] md:mt-0">Not captured</p>}
         </div>
         {record.still_missing.length > 0 && <p className="mt-6 rounded-[14px] bg-[#fff2c7] p-5 font-bold text-[#6d5510]">A clinician may still ask about: {record.still_missing.join(", ")}.</p>}

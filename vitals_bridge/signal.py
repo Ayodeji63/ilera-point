@@ -88,6 +88,7 @@ def estimate_heart_rate(samples: list[tuple[float, int] | tuple[float, int, int]
         return _failure("insufficient_samples", diagnostics)
 
     timestamps = [sample[0] for sample in settled]
+    red = [sample[1] for sample in settled]
     infrared = [sample[2] for sample in settled]
     dc_level = statistics.median(infrared)
     contact_ratio = sum(value >= FINGER_IR_THRESHOLD for value in infrared) / len(infrared)
@@ -104,15 +105,25 @@ def estimate_heart_rate(samples: list[tuple[float, int] | tuple[float, int, int]
 
     baseline = moving_average(infrared, max(5, round(sample_rate * 0.75)))
     ac = [value - mean for value, mean in zip(infrared, baseline)]
+    red_baseline = moving_average(red, max(5, round(sample_rate * 0.75)))
+    red_ac = [value - mean for value, mean in zip(red, red_baseline)]
     robust_span = _percentile(ac, 0.95) - _percentile(ac, 0.05)
+    red_robust_span = _percentile(red_ac, 0.95) - _percentile(red_ac, 0.05)
     ripple_ratio = robust_span / max(dc_level, 1)
     baseline_span_ratio = (_percentile(baseline, 0.95) - _percentile(baseline, 0.05)) / max(dc_level, 1)
     ac_rms = math.sqrt(sum(value * value for value in ac) / len(ac))
     diagnostics.update({
         "ac_span": round(robust_span, 1),
+        "red_ac_span": round(red_robust_span, 1),
         "ripple_ratio": round(ripple_ratio, 5),
         "baseline_drift_ratio": round(baseline_span_ratio, 5),
     })
+    red_dc_level = statistics.median(red)
+    if robust_span > 0 and red_dc_level > 0:
+        diagnostics["spo2_ratio"] = round(
+            (red_robust_span / red_dc_level) / (robust_span / dc_level),
+            5,
+        )
     if robust_span < 80 or ripple_ratio < 0.0015 or ac_rms < 20:
         return _failure("weak_signal", diagnostics)
     if ripple_ratio > 0.10 or baseline_span_ratio > 0.12:
@@ -166,6 +177,9 @@ def estimate_heart_rate(samples: list[tuple[float, int] | tuple[float, int, int]
     rhythm_score = max(0.0, 1 - variability / 0.22)
     signal_score = min(1.0, ripple_ratio / 0.006)
     confidence = round(0.35 * peak_score + 0.45 * rhythm_score + 0.20 * signal_score, 2)
+    diagnostics["confidence"] = confidence
+    if confidence < 0.60:
+        return _failure("low_confidence", diagnostics)
     quality = "good" if confidence >= 0.75 and variability <= 0.12 else "fair"
     return {
         "heart_rate_bpm": round(bpm),

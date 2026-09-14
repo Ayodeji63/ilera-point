@@ -35,9 +35,9 @@ Open `http://localhost:5173/yoruba-image-to-speech` directly; this public utilit
 - New patients enter their name and optional phone number, create a record, and continue directly to recording consent.
 - No photograph or biometric information is captured, processed, transmitted, or stored.
 - A separate consent screen explains full-session video, private clinician access, and the right to continue without video.
-- After consent, the kiosk measures pulse and temperature one after the other. It first waits for stable finger contact, captures a timestamped 10-second MAX30102 window, discards the contact transient, validates periodicity/motion/contact, and automatically retries once when needed. It then asks the patient to remove their finger and separately captures several stable MLX90614 forehead readings.
-- A single failed sensor no longer discards the other measurement: the patient may continue with a trustworthy partial result, retry both checks, or skip without blocking the interview.
-- Successful readings are stored in `structured_record.vitals` as `temperature_c`, `heart_rate_bpm`, `captured_at`, `confidence`, and `sample_quality`, then shown on the patient summary and clinician case view. SpO₂ is intentionally omitted until the device output has been calibrated against a clinical reference.
+- After consent, pulse/oxygen and temperature use separate screens and separate Start buttons. No sensor reading begins on page load. Pulse captures a timestamped 10-second MAX30102 window and may retry automatically once; continuing then opens the independently started MLX90614 forehead screen.
+- Yoruba-English and Igbo-English patients receive localized visible controls plus automatic Sahara positioning guidance, with a button to hear the instructions again. Either sensor may be retried or skipped without losing the other result.
+- `structured_record.vitals` stores available calibrated values, signal confidence, and the raw calibration fields. SpO₂ is shown only when reference-derived ratio-of-ratios coefficients are configured. MLX90614 surface and ambient readings are stored separately; a corrected body-temperature value is shown only after fitted calibration coefficients are configured.
 - Accepted consent starts one modest 640×480 stream used by both per-turn audio recording and continuous audio/video recording. A persistent red indicator remains visible throughout recording. After each spoken question, listening starts automatically; local voice activity detection waits for speech and submits the answer after about 2.6 seconds of silence so thinking pauses are not cut off, while typing remains available.
 - On completion, the corrected record, complete turn history, consent choice, red-flag state, and any recording are saved. Browser recording blobs are normalized to `video/webm` before upload so Supabase Storage never receives a browser-generated `text/plain` MIME type. Video objects are private and only delivered through short-lived signed URLs.
 - Emergency flow: say or type `I have chest pain` to trigger the deterministic safety screen immediately after Gemini updates the record.
@@ -176,7 +176,23 @@ Do not expose ports 8765 or 8787 on the LAN or internet; both services bind to l
 curl http://127.0.0.1:8765/vitals/temperature
 ```
 
-The vitals systemd unit keeps at most 20 identity-free raw pulse buffers in `/var/lib/ilerapoint-vitals/captures`. Each CSV contains elapsed timestamps plus red and IR samples and begins with the estimator outcome and diagnostics. Use these captures to compare at least 5–10 trials against a reference pulse oximeter or a timed manual pulse before tuning thresholds. The service never calculates or stores SpO₂; a clinical-looking SpO₂ value must wait for paired, per-device calibration data.
+The vitals systemd unit keeps at most 20 identity-free raw pulse buffers in `/var/lib/ilerapoint-vitals/captures`. Each CSV contains elapsed timestamps plus red and IR samples and begins with the estimator outcome and diagnostics. Use these captures to compare at least 5–10 trials against a reference pulse oximeter or a timed manual pulse before tuning thresholds. The service calculates the red/IR calibration ratio but withholds a clinical-looking SpO₂ value until paired, per-device calibration data has supplied the mapping coefficients.
+
+Reference-derived coefficients belong in the Pi-only systemd environment file below, never in Vercel. Do not copy the placeholders: fit temperature as `corrected = a * surface + b` and SpO₂ as `SpO2 = A - B * ratio` from paired measurements first.
+
+```bash
+sudo install -d -m 755 /etc/ilerapoint
+sudoedit /etc/ilerapoint/vitals.env
+```
+
+```ini
+VITALS_TEMPERATURE_CALIBRATION_A=<fitted-a>
+VITALS_TEMPERATURE_CALIBRATION_B=<fitted-b>
+VITALS_SPO2_CALIBRATION_A=<fitted-A>
+VITALS_SPO2_CALIBRATION_B=<fitted-B>
+```
+
+Then run `sudo systemctl restart ilerapoint-vitals`. Without those values, the kiosk deliberately labels the MLX90614 result as a surface reading and withholds SpO₂ instead of guessing.
 
 Open `https://ilera-point.vercel.app` once in a normal Chromium window and choose **Allow** when Chromium asks for Local Network Access, microphone, and camera. Those choices persist in that Chromium profile. Then launch kiosk mode with the same user/profile:
 

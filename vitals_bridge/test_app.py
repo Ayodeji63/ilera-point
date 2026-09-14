@@ -5,9 +5,10 @@ from unittest.mock import patch
 from vitals_bridge.signal import estimate_heart_rate, mlx_celsius
 
 try:
-    from vitals_bridge.app import CaptureStore
+    from vitals_bridge.app import CaptureStore, temperature_result
 except ModuleNotFoundError:  # Pure signal tests still run outside the Pi venv.
     CaptureStore = None
+    temperature_result = None
 
 
 def pulse_samples(bpm=72, seconds=10, baseline=95_000, amplitude=1_200):
@@ -33,6 +34,7 @@ class SensorMathTests(unittest.TestCase):
         self.assertTrue(70 <= result["heart_rate_bpm"] <= 74)
         self.assertEqual(result["reason"], None)
         self.assertEqual(result["confidence_label"], "good")
+        self.assertGreater(result["diagnostics"]["spo2_ratio"], 0)
 
     def test_trims_the_contact_ramp_before_peak_detection(self):
         samples = pulse_samples()
@@ -119,7 +121,8 @@ class CaptureSequenceTests(unittest.TestCase):
         first_temperature = hardware.calls.index("temperature")
         self.assertTrue(all(call == "pulse" for call in hardware.calls[:first_temperature]))
         self.assertEqual(store.sessions["test-session"]["status"], "complete")
-        self.assertEqual(store.sessions["test-session"]["result"]["temperature_c"], 36.6)
+        self.assertEqual(store.sessions["test-session"]["result"]["temperature_surface_c"], 36.6)
+        self.assertIsNone(store.sessions["test-session"]["result"]["temperature_c"])
 
     def test_a_failed_pulse_sensor_keeps_a_valid_temperature_result(self):
         hardware = FakeTemperatureOnly()
@@ -134,9 +137,39 @@ class CaptureSequenceTests(unittest.TestCase):
 
         state = store.sessions["test-session"]
         self.assertEqual(state["status"], "partial")
-        self.assertEqual(state["result"]["temperature_c"], 36.6)
+        self.assertEqual(state["result"]["temperature_surface_c"], 36.6)
         self.assertIsNone(state["result"]["heart_rate_bpm"])
         self.assertIn("MAX30102", state["warnings"][0])
+
+    def test_temperature_only_stage_never_reads_the_pulse_sensor(self):
+        hardware = FakeHardware()
+        store = CaptureStore(hardware)
+        store.sessions["temperature-session"] = {}
+        with (
+            patch("vitals_bridge.app.TEMPERATURE_POSITION_SECONDS", 0),
+            patch("vitals_bridge.app.TEMPERATURE_SAMPLE_COUNT", 3),
+            patch("vitals_bridge.app.time.sleep", return_value=None),
+        ):
+            store._capture("temperature-session", "temperature")
+
+        self.assertTrue(all(call == "temperature" for call in hardware.calls))
+        self.assertEqual(store.sessions["temperature-session"]["status"], "complete")
+
+    def test_temperature_keeps_raw_and_corrected_values_separate(self):
+        readings = [
+            {"object_c": value, "ambient_c": 27.0, "timestamp": "now"}
+            for value in (32.7, 32.8, 32.9, 32.8, 32.7, 32.9)
+        ]
+        with (
+            patch("vitals_bridge.app.TEMPERATURE_CALIBRATION_A", 1.0),
+            patch("vitals_bridge.app.TEMPERATURE_CALIBRATION_B", 3.7),
+        ):
+            result, error = temperature_result(readings)
+
+        self.assertIsNone(error)
+        self.assertEqual(result["temperature_surface_c"], 32.8)
+        self.assertEqual(result["temperature_c"], 36.5)
+        self.assertTrue(result["temperature_calibrated"])
 
 
 if __name__ == "__main__":

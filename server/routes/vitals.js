@@ -44,6 +44,16 @@ vitalsRouter.post("/session", async (_req, res) => {
   catch (error) { sendBridgeError(res, error); }
 });
 
+vitalsRouter.post("/pulse/session", async (_req, res) => {
+  try { res.status(202).json(await bridgeRequest("/vitals/pulse/session", { method: "POST" })); }
+  catch (error) { sendBridgeError(res, error); }
+});
+
+vitalsRouter.post("/temperature/session", async (_req, res) => {
+  try { res.status(202).json(await bridgeRequest("/vitals/temperature/session", { method: "POST" })); }
+  catch (error) { sendBridgeError(res, error); }
+});
+
 vitalsRouter.get("/session/:id", async (req, res) => {
   if (!/^[0-9a-f-]{36}$/i.test(req.params.id)) return res.status(400).json({ error: "Invalid vitals capture session." });
   try { res.json(await bridgeRequest(`/vitals/session/${encodeURIComponent(req.params.id)}`)); }

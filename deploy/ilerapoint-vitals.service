@@ -12,8 +12,11 @@ Environment=VITALS_PULSE_MAX_ATTEMPTS=2
 Environment=VITALS_FINGER_WAIT_SECONDS=6
 Environment=VITALS_TEMPERATURE_POSITION_SECONDS=3
 Environment=VITALS_TEMPERATURE_SAMPLE_COUNT=6
+Environment=VITALS_AMBIENT_MIN_C=18
+Environment=VITALS_AMBIENT_MAX_C=32
 Environment=VITALS_RAW_LOG_DIR=/var/lib/ilerapoint-vitals/captures
 Environment=VITALS_RAW_LOG_LIMIT=20
+EnvironmentFile=-/etc/ilerapoint/vitals.env
 StateDirectory=ilerapoint-vitals
 ExecStart=__ILERA_ROOT__/.venv/bin/python -m vitals_bridge.app
 Restart=on-failure

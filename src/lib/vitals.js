@@ -43,8 +43,8 @@ function wait(milliseconds, signal) {
   });
 }
 
-export async function captureVitals({ onUpdate = () => {}, signal, fetchImpl = fetch, pollMs = 350, timeoutMs = CAPTURE_TIMEOUT_MS } = {}) {
-  const started = await responseBody(await vitalsFetch(fetchImpl, "/api/vitals/session", { method: "POST", signal }));
+async function captureStage(startPath, { onUpdate = () => {}, signal, fetchImpl = fetch, pollMs = 350, timeoutMs = CAPTURE_TIMEOUT_MS } = {}) {
+  const started = await responseBody(await vitalsFetch(fetchImpl, startPath, { method: "POST", signal }));
   if (!started.session_id) throw new Error("The vitals sensor did not start correctly.");
   const deadline = Date.now() + timeoutMs;
 
@@ -56,4 +56,16 @@ export async function captureVitals({ onUpdate = () => {}, signal, fetchImpl = f
     if (state.status === "error") throw new Error(state.error || "A stable reading was not captured.");
   }
   throw new Error("The sensors could not get a stable reading in time.");
+}
+
+export function captureVitals(options) {
+  return captureStage("/api/vitals/session", options);
+}
+
+export function capturePulseVitals(options) {
+  return captureStage("/api/vitals/pulse/session", options);
+}
+
+export function captureTemperatureVitals(options) {
+  return captureStage("/api/vitals/temperature/session", options);
 }

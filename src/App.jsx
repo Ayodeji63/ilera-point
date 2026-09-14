@@ -3,6 +3,7 @@ import WelcomeScreen from "./components/WelcomeScreen";
 import PatientAccessScreen from "./components/PatientAccessScreen";
 import VideoConsentScreen from "./components/VideoConsentScreen";
 import VitalsScreen from "./components/VitalsScreen";
+import TemperatureScreen from "./components/TemperatureScreen";
 import ConversationScreen from "./components/ConversationScreen";
 import EmergencyScreen from "./components/EmergencyScreen";
 import SummaryScreen from "./components/SummaryScreen";
@@ -93,7 +94,9 @@ function prescriptionSpeech(prescription, languageCode) {
 function summaryText(record) {
   const measurements = record.vitals ? [
     record.vitals.temperature_c != null ? `your measured temperature was ${record.vitals.temperature_c} degrees Celsius` : "",
+    record.vitals.temperature_c == null && record.vitals.temperature_surface_c != null ? `an uncalibrated skin surface reading of ${record.vitals.temperature_surface_c} degrees Celsius was captured` : "",
     record.vitals.heart_rate_bpm != null ? `your heart rate was ${record.vitals.heart_rate_bpm} beats per minute` : "",
+    record.vitals.spo2_percent != null ? `your oxygen saturation was ${record.vitals.spo2_percent} percent` : "",
   ].filter(Boolean) : [];
   const vitals = measurements.length ? `${measurements.join(" and ")}.` : "No sensor measurements were captured.";
   return `Here is what we heard. Your main concern is ${record.chief_complaints.join(", ") || "not recorded"}. It started ${record.onset || "at an unspecified time"}. Other symptoms are ${record.associated_symptoms.join(", ") || "not recorded"}. Your medication history is ${record.medication_history || "not recorded"}. ${vitals} A clinician will review this information.`;
@@ -109,6 +112,7 @@ export default function App() {
   const [language, setLanguage] = useState("en");
   const [patient, setPatient] = useState(null);
   const [videoConsent, setVideoConsent] = useState(false);
+  const [pulseVitals, setPulseVitals] = useState(null);
   const [session, setSession] = useState(null);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -160,6 +164,9 @@ export default function App() {
     addEventListener("popstate", pop);
     return () => removeEventListener("popstate", pop);
   }, []);
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [screen]);
 
   useEffect(
     () => () => {
@@ -380,17 +387,25 @@ export default function App() {
       const question = FIRST_QUESTIONS[language];
       applySession(createInterviewSession(question));
       setTypedAnswer("");
-      setScreen("vitals");
+      setPulseVitals(null);
+      setScreen("vitals-pulse");
     } catch (e) {
       setError(e.message || "Camera or microphone access was blocked.");
     } finally {
       setStatus("idle");
     }
   };
-  const continueFromVitals = (vitals) => {
+  const continueFromPulse = (vitals) => {
+    stopAudio();
+    setPulseVitals(vitals);
+    setScreen("vitals-temperature");
+  };
+  const continueFromTemperature = (temperatureVitals) => {
+    stopAudio();
     const current = sessionRef.current;
     if (!current) return;
-    const next = { ...current, record: { ...current.record, vitals } };
+    const combined = pulseVitals || temperatureVitals ? { ...(pulseVitals || {}), ...(temperatureVitals || {}) } : null;
+    const next = { ...current, record: { ...current.record, vitals: combined } };
     applySession(next);
     setScreen("conversation");
     scheduleSpeech(next.current_question, true);
@@ -629,6 +644,7 @@ export default function App() {
     saving.current = false;
     history.pushState({}, "", "/");
     setPatient(null);
+    setPulseVitals(null);
     applySession(null);
     // The capability token dies with the visit: nothing about this patient stays
     // readable on a shared kiosk after they walk away.
@@ -717,8 +733,10 @@ export default function App() {
         onChoice={beginInterview}
       />
     );
-  if (screen === "vitals" && session)
-    return <VitalsScreen patient={patient} onContinue={continueFromVitals} />;
+  if (screen === "vitals-pulse" && session)
+    return <VitalsScreen patient={patient} language={language} speaking={status === "speaking" || status === "loading-speech"} onSpeak={speak} onStopSpeech={stopAudio} onContinue={continueFromPulse} />;
+  if (screen === "vitals-temperature" && session)
+    return <TemperatureScreen patient={patient} language={language} pulseResult={pulseVitals} speaking={status === "speaking" || status === "loading-speech"} onSpeak={speak} onStopSpeech={stopAudio} onContinue={continueFromTemperature} />;
   if (screen === "emergency")
     return (
       <EmergencyScreen triggers={triggers} status={status} error={error} />
