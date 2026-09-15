@@ -19,6 +19,17 @@ export async function getConsultationResult(id, token) {
   return body.result;
 }
 
+export async function lookupConsultationResult(code, phone) {
+  const response = await fetch("/api/consultations/result/lookup", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code, phone }),
+  });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || "Your result could not be checked.");
+  return body;
+}
+
 export async function withdrawOptionalConsent(id, token) {
   const response = await fetch(`/api/consultations/${id}/consent/withdraw`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) });
   const body = await response.json();

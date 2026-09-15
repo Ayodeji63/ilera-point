@@ -17,6 +17,11 @@ describe("missingColumnHint", () => {
       .toMatch(/0011_clinical_prescribing_context\.sql/);
   });
 
+  it("points resumable result access to its migration", () => {
+    expect(missingColumnHint({ code: "PGRST204", message: "Could not find the 'patient_return_code_hash' column of 'consultations' in the schema cache" }, "0010_ethics_privacy.sql"))
+      .toMatch(/0012_patient_result_return\.sql/);
+  });
+
   it("stays out of the way of unrelated failures", () => {
     expect(missingColumnHint({ code: "08006", message: "connection failure" }, "0003.sql")).toBeNull();
     expect(missingColumnHint(null, "0003.sql")).toBeNull();

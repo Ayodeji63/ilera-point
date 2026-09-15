@@ -10,6 +10,7 @@ import EmergencyScreen from "./components/EmergencyScreen";
 import SummaryScreen from "./components/SummaryScreen";
 import RecordingIndicator from "./components/RecordingIndicator";
 import PatientCompleteScreen from "./components/PatientCompleteScreen";
+import PatientResultLookupScreen from "./components/PatientResultLookupScreen";
 import DoctorLoginScreen from "./components/DoctorLoginScreen";
 import DoctorSignupScreen from "./components/DoctorSignupScreen";
 import DoctorOnboardingScreen from "./components/DoctorOnboardingScreen";
@@ -34,6 +35,7 @@ import { connectTurnTranscriber } from "./lib/media/pcmStream";
 import { transcribeTurn } from "./lib/media/transcribeTurn";
 import { getConsultationResult, saveConsultation, withdrawOptionalConsent } from "./lib/consultations";
 import { getDoctorAccount } from "./lib/doctors";
+import { clearPatientReceipt, readPatientReceipt, savePatientReceipt } from "./lib/patientReceipt";
 
 const FIRST_QUESTIONS = {
   en: "What is the main health problem bringing you here today?",
@@ -59,6 +61,7 @@ const ACKNOWLEDGEMENTS = {
 const SAHARA_PLAYBACK_DEADLINE_MS = 28000;
 
 function routeFromPath() {
+  if (location.pathname === "/check-result") return { screen: "patient-result-lookup" };
   if (location.pathname === "/yoruba-image-to-speech")
     return { screen: "yoruba-image-speech" };
   if (location.pathname === "/doctor/login") return { screen: "doctor-login" };
@@ -108,24 +111,34 @@ function summaryText(record) {
 }
 
 export default function App() {
-  const initialRoute = routeFromPath();
-  const [screen, setScreen] = useState(initialRoute.screen);
+  const [bootstrap] = useState(() => {
+    const initialRoute = routeFromPath();
+    const restoredReceipt = initialRoute.screen === "welcome" ? readPatientReceipt() : null;
+    return { initialRoute, restoredReceipt };
+  });
+  const { initialRoute, restoredReceipt } = bootstrap;
+  const [screen, setScreen] = useState(restoredReceipt ? "complete" : initialRoute.screen);
   const [caseId, setCaseId] = useState(initialRoute.caseId || "");
   const [prescribeMode, setPrescribeMode] = useState(
     Boolean(initialRoute.prescribeMode),
   );
-  const [language, setLanguage] = useState("en");
+  const [language, setLanguage] = useState(restoredReceipt?.language || "en");
   const [patient, setPatient] = useState(null);
   const [medicalProfile, setMedicalProfile] = useState(null);
   const [profileReturnScreen, setProfileReturnScreen] = useState(null);
-  const [consentChoice, setConsentChoice] = useState(null);
+  const [consentChoice, setConsentChoice] = useState(restoredReceipt?.optional_consent_active ? { videoRecording: true, researchReuse: false } : null);
   const [pulseVitals, setPulseVitals] = useState(null);
   const [session, setSession] = useState(null);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [typedAnswer, setTypedAnswer] = useState("");
   const [triggers, setTriggers] = useState([]);
-  const [consultation, setConsultation] = useState(null);
+  const [consultation, setConsultation] = useState(restoredReceipt ? {
+    id: restoredReceipt.id,
+    patient_token: restoredReceipt.patient_token,
+    patient_return_code: restoredReceipt.patient_return_code,
+    patient_result_expires_at: restoredReceipt.patient_result_expires_at,
+  } : null);
   const [doctorAccount, setDoctorAccount] = useState(null);
   const [doctorError, setDoctorError] = useState("");
   const [collection, setCollection] = useState(null);
@@ -455,6 +468,7 @@ export default function App() {
         video,
       );
       setConsultation(saved);
+      savePatientReceipt(saved, language, undefined, Boolean(consentChoice?.videoRecording || consentChoice?.researchReuse));
       return saved;
     } finally {
       saving.current = false;
@@ -678,6 +692,7 @@ export default function App() {
     // readable on a shared kiosk after they walk away.
     setConsultation(null);
     setCollection(null);
+    clearPatientReceipt();
     setWaitedTooLong(false);
     setPrivacyStatus("");
     spokenFor.current = null;
@@ -742,9 +757,23 @@ export default function App() {
     );
   if (screen === "yoruba-image-speech")
     return <YorubaImageSpeechScreen onBack={() => navigate("/", "welcome")} />;
+  if (screen === "patient-result-lookup")
+    return <PatientResultLookupScreen
+      language={language}
+      onLanguageChange={setLanguage}
+      onBack={() => navigate("/", "welcome")}
+      onResult={(result) => {
+        setCollection(result);
+        setConsultation(null);
+        setScreen("complete");
+        if (result.prescription) scheduleSpeech(prescriptionSpeech(result.prescription, language));
+      }}
+    />;
   if (screen === "patient-access")
     return (
       <PatientAccessScreen
+        language={language}
+        onLanguageChange={setLanguage}
         onBack={() => setScreen("welcome")}
         onPatient={(found) => {
           setPatient(found);
@@ -759,6 +788,8 @@ export default function App() {
     return (
       <MedicalProfileScreen
         patient={patient}
+        language={language}
+        onLanguageChange={setLanguage}
         initialProfile={medicalProfile}
         onBack={() => {
           setError("");
@@ -783,8 +814,10 @@ export default function App() {
       <VideoConsentScreen
         patient={patient}
         language={language}
+        onLanguageChange={setLanguage}
         busy={status === "starting-media"}
         error={error}
+        onBack={() => setScreen("medical-profile")}
         onChoice={beginInterview}
       />
     );
@@ -818,6 +851,8 @@ export default function App() {
       <PatientCompleteScreen
         patient={patient}
         result={collection}
+        resultAccessCode={consultation?.patient_return_code}
+        resultAccessExpiresAt={consultation?.patient_result_expires_at}
         waitedTooLong={waitedTooLong}
         speaking={status === "speaking" || status === "loading-speech"}
         onReadAloud={() => collection?.prescription && speak(prescriptionSpeech(collection.prescription, language))}
@@ -828,6 +863,7 @@ export default function App() {
           try {
             await withdrawOptionalConsent(consultation.id, consultation.patient_token);
             setConsentChoice((current) => current ? { ...current, videoRecording: false, researchReuse: false } : current);
+            savePatientReceipt(consultation, language, undefined, false);
             setPrivacyStatus("withdrawn");
           } catch (failure) { setPrivacyStatus(failure.message); }
         }}
@@ -872,6 +908,7 @@ export default function App() {
       language={language}
       onLanguageChange={setLanguage}
       onStart={() => setScreen("patient-access")}
+      onCheckResult={() => navigate("/check-result", "patient-result-lookup")}
       onOpenYorubaTool={() =>
         navigate("/yoruba-image-to-speech", "yoruba-image-speech")
       }

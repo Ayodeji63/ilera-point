@@ -8,6 +8,23 @@ export function createPatientToken() {
   return randomBytes(32).toString("hex");
 }
 
+const RETURN_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+// Twelve base-32 characters provide 60 bits of entropy while remaining short
+// enough to copy from a kiosk receipt. Ambiguous I/O/0/1 characters are omitted.
+export function createPatientReturnCode() {
+  const characters = [...randomBytes(12)].map((byte) => RETURN_CODE_ALPHABET[byte & 31]).join("");
+  return characters.match(/.{1,4}/g).join("-");
+}
+
+export function normalizePatientReturnCode(code) {
+  return String(code || "").toUpperCase().replace(/[^A-Z2-9]/g, "");
+}
+
+export function hashPatientReturnCode(code) {
+  return sha256(normalizePatientReturnCode(code));
+}
+
 export function hashPatientToken(token) {
   return sha256(token);
 }

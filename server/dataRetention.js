@@ -6,7 +6,25 @@ const ALERT_BUCKET = process.env.SUPABASE_ALERT_BUCKET || "escalation-alerts";
 export async function enforceRetention({ dryRun = true, now = new Date() } = {}) {
   const supabase = getSupabaseAdmin();
   const cutoff = now.toISOString();
-  const report = { dryRun, expiredVideos: 0, expiredAlertAudio: 0, auditEvents: 0, aiEvents: 0, benchmarkSamples: 0, clinicalRecords: 0 };
+  const report = { dryRun, expiredVideos: 0, expiredPatientResultCapabilities: 0, expiredAlertAudio: 0, auditEvents: 0, aiEvents: 0, benchmarkSamples: 0, clinicalRecords: 0 };
+
+  const { data: resultCapabilities, error: resultCapabilitiesError } = await supabase.from("consultations")
+    .select("id")
+    .not("patient_return_code_hash", "is", null)
+    .lte("patient_result_expires_at", cutoff)
+    .limit(500);
+  if (resultCapabilitiesError) throw resultCapabilitiesError;
+  report.expiredPatientResultCapabilities = resultCapabilities.length;
+  if (!dryRun && resultCapabilities.length) {
+    const { error } = await supabase.from("consultations").update({
+      patient_token_hash: null,
+      patient_token_expires_at: null,
+      patient_token_consumed_at: null,
+      patient_return_code_hash: null,
+      patient_result_expires_at: null,
+    }).in("id", resultCapabilities.map((row) => row.id));
+    if (error) throw error;
+  }
 
   const { data: videos, error: videoQueryError } = await supabase.from("consultations")
     .select("id,video_url")

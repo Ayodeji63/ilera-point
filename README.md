@@ -9,7 +9,7 @@ IleraPoint is clinician-support software, not an autonomous diagnosis, triage, o
 - Consent separately explains short voice processing, optional continuous video, and optional future de-identified research consideration. Research is off by default and never affects care.
 - Live clinical dictation is not copied into the benchmark dataset. Content-minimized AI audit events record provider/model/prompt provenance without duplicating the transcript.
 - Returning-patient lookup requires a complete phone number, is rate-limited, and masks results.
-- Patient result tokens are hashed at rest, expire after four hours, and are consumed after collection.
+- Patient result tokens and 12-character return codes are hashed at rest and expire after seven days by default. Returning patients must also verify the complete phone number on their record, and checks are rate-limited.
 - Videos, audit evidence, approved benchmark data, and clinical records have configurable retention deadlines and a dry-run-first cleanup command.
 - Non-English voice modes are labelled supervised until representative clinical evaluation meets an approved threshold.
 - The medication matcher is a limited reference, not a complete interaction or contraindication check.
@@ -61,9 +61,9 @@ Open `http://localhost:5173/yoruba-image-to-speech` directly; this public utilit
 
 ### Collecting the prescription
 
-The patient stays at the kiosk after submitting. Saving a consultation issues a single-use capability token that the kiosk holds in memory while the database stores only its hash. It expires after four hours and is consumed after collection. The kiosk polls `GET /api/consultations/:id/result?token=…` every five seconds and shows nothing until the clinician has finished. When a prescription lands, the medicine, dose, and instructions appear in large type and are read aloud in the patient's language through Sahara.
+After submitting, the patient may wait or leave. Saving a consultation issues an opaque browser capability and a readable 12-character return code; the database stores only their hashes. Both expire after `PATIENT_RESULT_ACCESS_HOURS` (seven days by default) and remain usable for repeated checks during that period, so a slow clinician review does not strand the patient. The active kiosk polls `GET /api/consultations/:id/result?token=…` every five seconds. A patient returning later chooses **Check an earlier visit** and submits the code plus the complete phone number to the rate-limited `POST /api/consultations/result/lookup` route. Nothing clinical is returned until the clinician finishes.
 
-The token is never listed and is discarded when the kiosk is cleared, so nothing about a patient stays readable on a shared screen after they walk away. A wrong or missing token is answered exactly like a missing consultation, so the endpoint never confirms an id exists. Drug names and doses are the clinician's own words and are spoken as written — only the surrounding sentence is translated, so expect imperfect pronunciation of English drug names in Yoruba, Hausa, and Igbo.
+The active capability is kept only in `sessionStorage`, contains no patient name or clinical content, survives an accidental reload, and is discarded when the kiosk is cleared. The return code is shown once for the patient to write down or photograph. Wrong, expired, and missing credentials receive the same not-found response. When a prescription lands, the medicine, dose, and instructions appear in large type and are read aloud in the patient's language through Sahara. Drug names and doses are the clinician's own words and are spoken as written — only the surrounding sentence is translated, so expect imperfect pronunciation of English drug names in Yoruba, Hausa, and Igbo.
 
 ## Doctor workspace
 
@@ -167,7 +167,7 @@ Self-service signup needs working email delivery: the project requires email con
 
 ## Supabase setup
 
-Run the migrations in order in the Supabase SQL editor or migration CLI. After `0001`–`0009`, apply [`0010_ethics_privacy.sql`](supabase/migrations/0010_ethics_privacy.sql) for consent records, hashed expiring patient tokens, retention fields, benchmark provenance, and append-only audit tables. Then apply [`0011_clinical_prescribing_context.sql`](supabase/migrations/0011_clinical_prescribing_context.sql); it repairs a missing legacy `interaction_override`, adds the prescription's patient-context snapshot and acknowledgements, and reloads the Supabase schema cache. Migration 0010 invalidates legacy plaintext result tokens. The Express server uses the service-role key; never place that key in a `VITE_` variable.
+Run the migrations in order in the Supabase SQL editor or migration CLI. After `0001`–`0009`, apply [`0010_ethics_privacy.sql`](supabase/migrations/0010_ethics_privacy.sql) for consent records, hashed expiring patient tokens, retention fields, benchmark provenance, and append-only audit tables. Then apply [`0011_clinical_prescribing_context.sql`](supabase/migrations/0011_clinical_prescribing_context.sql); it repairs a missing legacy `interaction_override`, adds the prescription's patient-context snapshot and acknowledgements, and reloads the Supabase schema cache. Finally apply [`0012_patient_result_return.sql`](supabase/migrations/0012_patient_result_return.sql) for hashed return codes and repeatable result access. Migration 0010 invalidates legacy plaintext result tokens. The Express server uses the service-role key; never place that key in a `VITE_` variable.
 
 Preview retention cleanup with `pnpm privacy:retention`; apply it from an authorised scheduled backend using `pnpm privacy:retention -- --apply`. Clinical-record deletion remains disabled unless the deploying clinic approves its records schedule and sets `RETENTION_DELETE_CLINICAL_RECORDS=1`.
 

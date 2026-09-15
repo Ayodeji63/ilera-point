@@ -3,7 +3,7 @@ import { useState } from "react";
 import BrandHeader from "./BrandHeader";
 import { patientDirectory } from "../lib/providers/PatientDirectory";
 
-export default function PatientAccessScreen({ onPatient, onBack }) {
+export default function PatientAccessScreen({ language, onLanguageChange, onPatient, onBack }) {
   const [journey, setJourney] = useState("returning");
   const [form, setForm] = useState({ name: "", phone: "" });
   const [results, setResults] = useState([]);
@@ -48,7 +48,7 @@ export default function PatientAccessScreen({ onPatient, onBack }) {
 
   return (
     <main className="kiosk-shell min-h-[100dvh]">
-      <BrandHeader compact />
+      <BrandHeader compact language={language} onLanguageChange={onLanguageChange} />
       <section className="relative z-10 mx-auto grid max-w-[1120px] gap-6 px-5 pb-10 md:grid-cols-[.88fr_1.12fr] md:px-10">
         <div className="route-panel flex min-h-[560px] flex-col justify-between rounded-[16px] bg-[#103f33] p-6 text-white md:p-10">
           <div>

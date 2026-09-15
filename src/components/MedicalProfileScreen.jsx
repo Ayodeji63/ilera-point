@@ -26,7 +26,7 @@ const STEP_FIELDS = [
   new Set(["kidney_disease_status", "liver_disease_status", "other_conditions"]),
 ];
 
-export default function MedicalProfileScreen({ patient, initialProfile, onBack, onComplete }) {
+export default function MedicalProfileScreen({ patient, language, onLanguageChange, initialProfile, onBack, onComplete }) {
   const [form, setForm] = useState(() => ({ ...EMPTY, ...(initialProfile || {}) }));
   const [errors, setErrors] = useState([]);
   const [step, setStep] = useState(0);
@@ -70,7 +70,7 @@ export default function MedicalProfileScreen({ patient, initialProfile, onBack, 
   };
 
   return <main className="kiosk-shell min-h-[100dvh]">
-    <BrandHeader compact />
+    <BrandHeader compact language={language} onLanguageChange={onLanguageChange} />
     <section className="relative z-10 mx-auto grid max-w-[1180px] items-start gap-6 px-5 pb-12 lg:grid-cols-[.72fr_1.28fr] lg:px-10">
       <aside className="route-panel hidden rounded-[16px] bg-[#103f33] p-6 text-white lg:sticky lg:top-5 lg:block lg:p-9">
         <button type="button" onClick={goBack} className="flex min-h-12 items-center gap-2 font-black text-[#b8d5cc]"><ArrowLeft size={21} />{step > 0 ? "Previous questions" : "Back"}</button>

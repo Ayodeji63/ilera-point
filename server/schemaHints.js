@@ -14,6 +14,8 @@ const COLUMN_MIGRATIONS = {
   parse_provider: "0010_ethics_privacy.sql",
   parse_model: "0010_ethics_privacy.sql",
   prompt_version: "0010_ethics_privacy.sql",
+  patient_return_code_hash: "0012_patient_result_return.sql",
+  patient_result_expires_at: "0012_patient_result_return.sql",
 };
 
 function missingColumnName(message) {

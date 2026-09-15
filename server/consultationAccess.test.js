@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { collectionView, createPatientToken, hashPatientToken, patientTokenMatches } from "./consultationAccess.js";
+import {
+  collectionView,
+  createPatientReturnCode,
+  createPatientToken,
+  hashPatientReturnCode,
+  hashPatientToken,
+  normalizePatientReturnCode,
+  patientTokenMatches,
+} from "./consultationAccess.js";
 
 const prescription = { drug: "Paracetamol", dosage: "500 mg twice daily", instructions: "After food" };
 
@@ -24,6 +32,19 @@ describe("patient collection token", () => {
     expect(patientTokenMatches("", "")).toBe(false);
     expect(patientTokenMatches(storedHash, undefined)).toBe(false);
     expect(patientTokenMatches(null, token)).toBe(false);
+  });
+});
+
+describe("patient return code", () => {
+  it("issues a readable high-entropy code without ambiguous characters", () => {
+    const code = createPatientReturnCode();
+    expect(code).toMatch(/^[A-HJ-NP-Z2-9]{4}(?:-[A-HJ-NP-Z2-9]{4}){2}$/);
+    expect(createPatientReturnCode()).not.toBe(code);
+  });
+
+  it("normalizes spacing, case, and separators before hashing", () => {
+    expect(normalizePatientReturnCode("abcd efgh-jkmn")).toBe("ABCDEFGHJKMN");
+    expect(hashPatientReturnCode("ABCD-EFGH-JKMN")).toBe(hashPatientReturnCode("abcd efgh jkmn"));
   });
 });
 

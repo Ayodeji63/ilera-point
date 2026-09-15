@@ -46,7 +46,7 @@ The lookup throttle is per Node process. A multi-instance deployment should repl
 
 ### Patient result capability
 
-The server returns a 256-bit random capability to the active kiosk but stores only its SHA-256 hash. It expires after four hours and becomes unusable after the finished result is collected. Wrong, expired, consumed, and missing tokens return the same not-found response.
+The server returns a 256-bit random capability to the active kiosk and a 12-character, 60-bit return code for the patient, but stores only their SHA-256 hashes. Both expire after seven days by default, and the retention cleanup clears the expired hashes. The active capability is kept only in browser `sessionStorage` so an accidental reload can recover without leaving patient identity or clinical content in durable kiosk storage. A later visit-result check requires both the return code and the complete normalized phone number, is rate-limited, and returns the same not-found response for wrong, expired, and missing credentials. Access remains repeatable until expiry because consuming it on first view can strand a patient whose clinician response was delayed or who needs to re-check written instructions.
 
 Migration `0010_ethics_privacy.sql` invalidates legacy plaintext tokens. Patients waiting across that deployment must start a new session.
 
@@ -60,7 +60,7 @@ Migration `0010_ethics_privacy.sql` invalidates legacy plaintext tokens. Patient
 | Approved benchmark data | 365 days | Deleted after deadline |
 | Escalation-call audio and intent | 365 days | Storage object and intent removed after deadline |
 | Clinical consultation records | 2,190 days | Reported by cleanup; deletion requires explicit clinic configuration |
-| Patient-result capability | 4 hours | Rejected after expiry and consumed after collection |
+| Patient-result capability and return code | 7 days by default | Hashed at rest, rejected after expiry; return checks require phone verification and rate limiting |
 
 Run `pnpm privacy:retention` for a dry-run report and `pnpm privacy:retention -- --apply` from an authorised scheduled backend job to apply it. Clinical deletion also requires `RETENTION_DELETE_CLINICAL_RECORDS=1`. The six-year default is a configurable operational starting point, not a legal conclusion; the deploying institution must replace it with its approved records schedule.
 

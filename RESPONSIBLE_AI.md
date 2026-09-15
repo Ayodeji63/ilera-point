@@ -18,7 +18,7 @@ Emergency detection remains a small exact-match deterministic rule at the user's
 - No face, palm, or other biometric identity processing is present.
 - Consent separately describes required voice transcription, optional continuous video, and optional future de-identified research consideration. The notice version and choices are stored.
 - Consultation videos are private, delivered to authorised clinicians through short-lived signed URLs, and expire from storage under the configured retention policy.
-- Patient result capabilities are random, hashed at rest, expire after four hours, and are consumed after successful collection.
+- Patient result capabilities and high-entropy return codes are random and hashed at rest. They expire after seven days by default; later checks also require the complete recorded phone number and are rate-limited.
 - Patient lookup requires a complete normalized phone number, is rate-limited, and masks phone numbers in results.
 - Clinical access and safety-relevant actions create append-only, content-minimized audit events.
 - Live clinical dictation is not copied into `benchmark_samples`. Evaluation datasets must be imported separately from consented, de-identified recordings.
