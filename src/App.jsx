@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import WelcomeScreen from "./components/WelcomeScreen";
 import PatientAccessScreen from "./components/PatientAccessScreen";
+import MedicalProfileScreen from "./components/MedicalProfileScreen";
 import VideoConsentScreen from "./components/VideoConsentScreen";
 import VitalsScreen from "./components/VitalsScreen";
 import TemperatureScreen from "./components/TemperatureScreen";
@@ -26,6 +27,7 @@ import {
   createTurn,
   rollbackLastTurn,
   updateSessionRecord,
+  updateSessionClinicalProfile,
 } from "./lib/interview/session";
 import { SessionRecorder } from "./lib/media/sessionRecorder";
 import { connectTurnTranscriber } from "./lib/media/pcmStream";
@@ -99,7 +101,10 @@ function summaryText(record) {
     record.vitals.spo2_percent != null ? `your oxygen saturation was ${record.vitals.spo2_percent} percent` : "",
   ].filter(Boolean) : [];
   const vitals = measurements.length ? `${measurements.join(" and ")}.` : "No sensor measurements were captured.";
-  return `Here is what we heard. Your main concern is ${record.chief_complaints.join(", ") || "not recorded"}. It started ${record.onset || "at an unspecified time"}. Other symptoms are ${record.associated_symptoms.join(", ") || "not recorded"}. Your medication history is ${record.medication_history || "not recorded"}. ${vitals} A clinician will review this information.`;
+  const profile = record.patient_profile;
+  const age = profile?.age_value != null ? `${profile.age_value} ${profile.age_unit}` : "not recorded";
+  const allergy = profile?.drug_allergy_status === "known" ? profile.drug_allergy_details : profile?.drug_allergy_status?.replaceAll("_", " ") || "not recorded";
+  return `Here is what we heard. Your age is ${age}. Your drug allergy status is ${allergy}. Your main concern is ${record.chief_complaints.join(", ") || "not recorded"}. It started ${record.onset || "at an unspecified time"}. Other symptoms are ${record.associated_symptoms.join(", ") || "not recorded"}. Your medication history is ${record.medication_history || "not recorded"}. ${vitals} A clinician will review this information.`;
 }
 
 export default function App() {
@@ -111,6 +116,8 @@ export default function App() {
   );
   const [language, setLanguage] = useState("en");
   const [patient, setPatient] = useState(null);
+  const [medicalProfile, setMedicalProfile] = useState(null);
+  const [profileReturnScreen, setProfileReturnScreen] = useState(null);
   const [consentChoice, setConsentChoice] = useState(null);
   const [pulseVitals, setPulseVitals] = useState(null);
   const [session, setSession] = useState(null);
@@ -132,6 +139,7 @@ export default function App() {
   const speechTimer = useRef(null);
   const autoListenTimer = useRef(null);
   const speechRun = useRef(0);
+  const responseWaitStartedAt = useRef(null);
   const turnAbort = useRef(null);
   const turnCancelled = useRef(false);
   const videoBlob = useRef(null);
@@ -341,6 +349,10 @@ export default function App() {
       );
       const played = await playParts(parts, run, () => {
         clearTimeout(deadline);
+        if (responseWaitStartedAt.current != null) {
+          console.info("[latency] turn to first reply audio", { durationMs: Math.round(performance.now() - responseWaitStartedAt.current) });
+          responseWaitStartedAt.current = null;
+        }
         setStatus("speaking");
       });
       if (!played && run === speechRun.current) throw new Error("Sahara returned no audio.");
@@ -389,7 +401,7 @@ export default function App() {
       await media.current.start(consent.videoRecording);
       setConsentChoice(consent);
       const question = FIRST_QUESTIONS[language];
-      applySession(createInterviewSession(question));
+      applySession(createInterviewSession(question, medicalProfile));
       setTypedAnswer("");
       setPulseVitals(null);
       setScreen("vitals-pulse");
@@ -463,6 +475,7 @@ export default function App() {
       setStatus("idle");
       return false;
     }
+    if (responseWaitStartedAt.current == null) responseWaitStartedAt.current = performance.now();
     turnCancelled.current = false;
     setStatus("processing");
     setError("");
@@ -482,6 +495,7 @@ export default function App() {
       const safety = checkRedFlags(next.record);
       applySession(next);
       if (safety.emergency) {
+        responseWaitStartedAt.current = null;
         stopAudio();
         setTriggers(safety.triggers);
         setScreen("emergency");
@@ -501,6 +515,7 @@ export default function App() {
       scheduleSpeech(result.next_question, true);
       return true;
     } catch (e) {
+      responseWaitStartedAt.current = null;
       if (!turnCancelled.current)
         setError(
           e.name === "AbortError"
@@ -540,6 +555,7 @@ export default function App() {
         },
       });
       const blob = await finished;
+      responseWaitStartedAt.current = performance.now();
       console.info("[turn] recording finished", { bytes: blob.size, type: blob.type });
       if (turnCancelled.current) return;
       if (!blob.size) throw new Error("I did not hear an answer. Speak a little closer to the microphone or type below.");
@@ -589,6 +605,7 @@ export default function App() {
     }
   };
   const cancelTurn = () => {
+    responseWaitStartedAt.current = null;
     turnCancelled.current = true;
     media.current.stopTurn();
     // Closing the live socket settles the pending commit immediately; without it
@@ -652,6 +669,8 @@ export default function App() {
     saving.current = false;
     history.pushState({}, "", "/");
     setPatient(null);
+    setMedicalProfile(null);
+    setProfileReturnScreen(null);
     setConsentChoice(null);
     setPulseVitals(null);
     applySession(null);
@@ -729,8 +748,33 @@ export default function App() {
         onBack={() => setScreen("welcome")}
         onPatient={(found) => {
           setPatient(found);
+          setMedicalProfile(null);
+          setProfileReturnScreen(null);
           setError("");
-          setScreen("consent");
+          setScreen("medical-profile");
+        }}
+      />
+    );
+  if (screen === "medical-profile")
+    return (
+      <MedicalProfileScreen
+        patient={patient}
+        initialProfile={medicalProfile}
+        onBack={() => {
+          setError("");
+          setScreen(profileReturnScreen || "patient-access");
+          setProfileReturnScreen(null);
+        }}
+        onComplete={(profile) => {
+          setMedicalProfile(profile);
+          setError("");
+          if (profileReturnScreen === "summary" && sessionRef.current) {
+            applySession(updateSessionClinicalProfile(sessionRef.current, profile));
+            setProfileReturnScreen(null);
+            setScreen("summary");
+          } else {
+            setScreen("consent");
+          }
         }}
       />
     );
@@ -761,6 +805,10 @@ export default function App() {
         speaking={status === "speaking"}
         saving={status === "saving"}
         error={error}
+        onEditProfile={() => {
+          setProfileReturnScreen("summary");
+          setScreen("medical-profile");
+        }}
         onReview={submitForReview}
         onReset={reset}
       />

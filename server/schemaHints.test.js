@@ -12,6 +12,11 @@ describe("missingColumnHint", () => {
       .not.toMatch(/patient_token/);
   });
 
+  it("maps Supabase schema-cache errors to the migration that owns the column", () => {
+    expect(missingColumnHint({ code: "PGRST204", message: "Could not find the 'interaction_override' column of 'prescriptions' in the schema cache" }, "0010_ethics_privacy.sql"))
+      .toMatch(/0011_clinical_prescribing_context\.sql/);
+  });
+
   it("stays out of the way of unrelated failures", () => {
     expect(missingColumnHint({ code: "08006", message: "connection failure" }, "0003.sql")).toBeNull();
     expect(missingColumnHint(null, "0003.sql")).toBeNull();

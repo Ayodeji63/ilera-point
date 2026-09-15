@@ -13,6 +13,51 @@ const TERMINAL_TYPES = new Set([
 
 const wait = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds));
 
+async function downloadAudio(audioPath, signal) {
+  const audioUrl = normalizeSaharaAudioUrl(audioPath);
+  const response = await fetch(audioUrl, { signal });
+  if (!response.ok) throw new Error("Sahara generated speech but the audio could not be downloaded.");
+  return Buffer.from(await response.arrayBuffer());
+}
+
+function textId(body) {
+  return body?.data?.text_id || body?.data?.textId || body?.text_id || null;
+}
+
+function generatedAudioPath(body) {
+  return body?.data?.audio_path || body?.data?.audioPath || null;
+}
+
+function processingStatus(body) {
+  return String(body?.data?.processing_status || body?.data?.status || "").toUpperCase();
+}
+
+async function waitForQueuedSpeech(id, { apiKey, signal, timeoutMs = 20000 }) {
+  const deadline = Date.now() + timeoutMs;
+  let attempt = 0;
+  while (Date.now() < deadline) {
+    await wait(Math.min(1000, 300 + attempt * 100));
+    const response = await fetch(`https://infer.voice.intron.io/tts/v1/status/${encodeURIComponent(id)}`, {
+      headers: { Authorization: `Bearer ${apiKey}` },
+      signal,
+    });
+    const body = await response.json().catch(() => ({}));
+    if (response.status === 429) {
+      const retryAfter = Math.max(1, Number(response.headers.get("retry-after")) || 1);
+      await wait(Math.min(retryAfter * 1000, 3000));
+      attempt += 1;
+      continue;
+    }
+    if (!response.ok) throw new Error(body.message || "Could not check Sahara speech status.");
+    const audioPath = generatedAudioPath(body);
+    const status = processingStatus(body);
+    if (audioPath && (!status || status.includes("GENERATED"))) return downloadAudio(audioPath, signal);
+    if (status.includes("FAILED")) throw new Error(body.message || "Sahara speech generation failed.");
+    attempt += 1;
+  }
+  throw new Error(`Sahara speech generation took longer than ${Math.round(timeoutMs / 1000)} seconds.`);
+}
+
 export function saharaSocketOptions(apiKey) {
   return {
     headers: { Authorization: `Bearer ${apiKey}` },
@@ -160,14 +205,13 @@ function fillSessionPool(options) {
 
 async function acquireSession(options) {
   const key = saharaPoolKey(options);
-  fillSessionPool(options);
-  const pool = sessionPools.get(key);
+  const pool = sessionPools.get(key) || [];
   const entry = pool.shift();
-  // The pool stays empty while the connection budget is spent; open directly so
-  // the caller gets the real limit error instead of a missing warm session.
+  // Only explicitly prewarmed sessions are pooled. A committed Sahara session
+  // is single-use, so immediately opening a speculative replacement burns the
+  // very small streaming-upgrade allowance without shortening the active turn.
   if (!entry) return openSaharaSession(options);
   const wasWarm = entry.ready;
-  fillSessionPool(options);
   const session = await entry.promise;
   if (!session || session.failed || session.ws.readyState !== WebSocket.OPEN) {
     closeSession(session);
@@ -206,14 +250,54 @@ export async function synthesizeWithSaharaGenerate({ chunks, pausesMs = [], voic
       body: JSON.stringify({ text, voice_accent: voiceAccent, voice_gender: voiceGender, voice_language: language, output_audio_format: "wav" }),
       signal,
     });
-    const body = await response.json();
-    if (!response.ok || !body.data?.audio_path) throw new Error(body.message || "Sahara fallback speech generation failed.");
-    const audioUrl = normalizeSaharaAudioUrl(body.data.audio_path);
-    const audioResponse = await fetch(audioUrl, { signal });
-    if (!audioResponse.ok) throw new Error("Sahara generated speech but the audio could not be downloaded.");
-    const audio = Buffer.from(await audioResponse.arrayBuffer());
+    const body = await response.json().catch(() => ({}));
+    const audioPath = generatedAudioPath(body);
+    // The documented synchronous endpoint can return a recoverable text id when
+    // generation outlives the request. Continue that exact job instead of
+    // submitting duplicate speech and waiting from zero again.
+    const queuedId = textId(body);
+    if (!audioPath && queuedId && (response.status === 503 || isQueuedStatus(body))) {
+      const audio = await waitForQueuedSpeech(queuedId, { apiKey, signal });
+      onChunk?.(index, audio);
+      return audio;
+    }
+    if (!response.ok || !audioPath) throw new Error(body.message || "Sahara fallback speech generation failed.");
+    const audio = await downloadAudio(audioPath, signal);
     // Chunks are generated in parallel, so hand each one over the moment it
     // lands: the caller can start playing while the rest are still rendering.
+    onChunk?.(index, audio);
+    return audio;
+  }));
+  return returnChunks ? audioBuffers : mergeWavBuffers(audioBuffers, pausesMs);
+}
+
+function isQueuedStatus(body) {
+  const status = processingStatus(body);
+  return status.includes("QUEUED") || status.includes("PENDING") || status.includes("PROCESSING") || /queued|processing/i.test(body?.message || "");
+}
+
+// The queue endpoint has a much higher request allowance than streaming and is
+// ideal for speculative preload work. It also exposes a status id, so a slow
+// render is polled rather than submitted repeatedly.
+export async function synthesizeWithSaharaQueue({ chunks, pausesMs = [], voiceAccent, voiceGender, language, apiKey, signal, returnChunks = false, onChunk }) {
+  const audioBuffers = await Promise.all(chunks.map(async (text, index) => {
+    const response = await fetch("https://infer.voice.intron.io/tts/v1/enqueue", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ text, voice_accent: voiceAccent, voice_gender: voiceGender, voice_language: language, output_audio_format: "wav" }),
+      signal,
+    });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(body.message || "Sahara speech could not be queued.");
+    const id = textId(body);
+    if (!id) {
+      const audioPath = generatedAudioPath(body);
+      if (!audioPath) throw new Error(body.message || "Sahara returned no speech job.");
+      const audio = await downloadAudio(audioPath, signal);
+      onChunk?.(index, audio);
+      return audio;
+    }
+    const audio = await waitForQueuedSpeech(id, { apiKey, signal });
     onChunk?.(index, audio);
     return audio;
   }));

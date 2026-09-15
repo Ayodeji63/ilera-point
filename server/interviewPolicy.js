@@ -94,8 +94,17 @@ export function reconcileStillMissing(record, turns = []) {
   const missing = Array.isArray(record?.still_missing) ? record.still_missing : [];
   const symptomsRecorded = Array.isArray(record?.associated_symptoms) && record.associated_symptoms.length > 0;
   const symptomsDenied = turns.some((turn) => questionTopic(turn.question_asked) === "symptoms" && isExplicitDenial(turn.transcript));
-  if (!symptomsRecorded && !symptomsDenied) return [...missing];
-  return missing.filter((item) => !missingIsTopic(item, "symptoms"));
+  const hasChief = Array.isArray(record?.chief_complaints) && record.chief_complaints.length > 0;
+  const hasOnset = Boolean(String(record?.onset || "").trim());
+  const hasMedicationHistory = Boolean(String(record?.medication_history || "").trim());
+  return missing.filter((item) => {
+    const topic = topicForMissing([item]);
+    if (topic === "chief" && hasChief) return false;
+    if (topic === "onset" && hasOnset) return false;
+    if (topic === "medication" && hasMedicationHistory) return false;
+    if (topic === "symptoms" && (symptomsRecorded || symptomsDenied)) return false;
+    return true;
+  });
 }
 
 export function selectNextQuestion(candidate, turns, stillMissing, languageCode = "en") {

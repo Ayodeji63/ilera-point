@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { drainChunks, saharaSttUrl, validateStreamRequest } from "./saharaStt.js";
+import { drainChunks, languageCapacityCooldownMs, languageCapacityDelayMs, noteLanguageCapacityFailure, resetLanguageCapacityCooldowns, saharaSttUrl, validateStreamRequest } from "./saharaStt.js";
 
 const SUPPORTED = new Set(["en", "yo", "pcm", "ha", "ig"]);
 
@@ -40,5 +40,20 @@ describe("Sahara streaming transcription", () => {
     const { chunks, rest } = drainChunks(Buffer.alloc(4000), { flush: true });
     expect(chunks.map((chunk) => chunk.length)).toEqual([4000]);
     expect(rest).toHaveLength(0);
+  });
+
+  it("honours Sahara's requested per-language capacity cooldown", () => {
+    resetLanguageCapacityCooldowns();
+    expect(languageCapacityDelayMs("Required language not available for this session, please wait 30 seconds")).toBe(30000);
+    noteLanguageCapacityFailure("en", "Required language not available for this session, please wait 30 seconds", 1000);
+    expect(languageCapacityCooldownMs("en", 11000)).toBe(20000);
+    expect(languageCapacityCooldownMs("yo", 11000)).toBe(0);
+    resetLanguageCapacityCooldowns();
+  });
+
+  it("does not cooldown unrelated stream failures", () => {
+    resetLanguageCapacityCooldowns();
+    expect(noteLanguageCapacityFailure("en", "socket hang up", 1000)).toBe(0);
+    expect(languageCapacityCooldownMs("en", 1001)).toBe(0);
   });
 });

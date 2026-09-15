@@ -351,11 +351,21 @@ Interview progress is content-based rather than a fixed row of question stops. S
 
 Patient access is a two-panel care board with an explicit segmented choice between **Returning patient** and **I’m a new patient**. The clinic-green panel explains the task and privacy boundary; the white panel contains the active form. No photograph or biometric information is requested.
 
-Returning patients search with either name or phone, then choose from clearly labeled matches. An empty result offers one direct recovery action: create a new patient record. New patients provide a full name and an optional phone number, then proceed directly to recording consent.
+Returning patients search with either name or phone, then choose from clearly labeled matches. An empty result offers one direct recovery action: create a new patient record. New patients provide a full name and phone number, then proceed to the visit-specific clinical-details route before recording consent.
 
 **The Explicit Choice Rule.** A returning patient always chooses a displayed record; the kiosk never guesses between possible matches.
 
 **The Details Before Interview Rule.** New-patient details must be saved before recording consent and conversation.
+
+### Visit-specific clinical details
+
+After record selection, a four-stop route collects **About you**, **Allergies and medicines**, **Health conditions**, and **Review and confirm**. On kiosk-width desktop, the white active form sits beside a compact clinic-green route map; on mobile, the active question surface comes first and the context panel is removed so the next action remains in the first viewport. Only one question group is visible at a time.
+
+Age supports years or months and pediatric weight becomes required below 18. Sex recorded at birth is labeled by its clinical purpose rather than presented as gender identity. Pregnancy and breastfeeding are asked explicitly with not-applicable and unable-to-ascertain options; neither is inferred from sex. Allergy and medicine states distinguish none from unknown, and known/current selections progressively disclose the required details. The final stop repeats every answer before the yellow confirmation action.
+
+**The Unknown Is Not None Rule.** Every safety status offers an explicit unable-to-ascertain choice. Never preselect “no,” derive it from another answer, or collapse it into missing data.
+
+**The Profile Is Per Visit Rule.** Pregnancy, breastfeeding, medicines, allergies, weight, and organ status can change. Confirm the snapshot each visit and keep it out of public patient lookup results.
 
 ### Recording Consent & Indicator
 
@@ -403,13 +413,15 @@ The authenticated clinician workspace keeps the board’s green, chalk, type, ra
 
 ### Prescription Stage
 
-Prescription is a separate route at `/doctor/case/:id/prescribe`, with its own heading and a clear back-to-case action. An evidence-first clinic-green sidebar names the patient, states that speech always becomes a draft, and keeps the main concern and medication history beside the prescribing controls. It remains sticky on medium and wider screens; on mobile it appears before dictation and the form.
+Prescription is a separate route at `/doctor/case/:id/prescribe`, with its own heading and a clear back-to-case action. An evidence-first clinic-green sidebar names the patient, states that speech always becomes a draft, and keeps the main concern plus the complete patient-confirmed prescribing snapshot beside the controls. It remains sticky on wide screens; on mobile it appears before dictation and the form.
 
 The dictation panel offers an explicit clinician language selector for English, Yorùbá + English, Pidgin + English, Hausa + English, and Igbo + English. Its 128px circular microphone is sunlit yellow at rest, changes to listening coral with a stop icon while recording, and becomes a disabled processing control while transcription and parsing complete. Plain-language status announces opening, waiting, listening, finishing, transcribing, and field checking; recording also exposes a separate cancel action. The status is live, the panel exposes busy state, the microphone has a changing accessible name, and errors remain visible as alerts. The Sahara transcript stays visible after capture, including when a rejected parse leaves the clinician to type deliberately.
 
 Speech output is never written directly. A successful parse fills the editable Drug, Dose, Frequency, Duration, and Instructions fields, then adds a pale-green confirmation record that repeats every field, identifies missing values, shows parse confidence only as supporting information, and directs the clinician to check drug and dose against the patient record. The clinician must choose either **Discard and type** or an explicit **Confirm and save prescription** action. Typed prescribing remains available independently and its dominant action states that saving completes the consultation. At medium widths, the four compact fields form two columns while Instructions spans the form; all fields stack on mobile.
 
 Medication-history matches appear in a warning-wash alert with a text explanation, a **Read warning aloud** recovery control in the selected language, and a reminder that the check is a reference rather than a clinical decision. Saving through a warning requires an explicit, recorded acknowledgment—either the typed override or the dictated confirmation whose label states that the warning was considered. Warning, error, recording, processing, disabled, and saving states all remain explicit in text as well as color; fields and the microphone retain the universal 4px focus-blue treatment.
+
+Before either typed or dictated save, clinicians check one explicit confirmation covering age/weight, allergies/reactions, prescription/OTC/herbal medicines, pregnancy/lactation, and kidney/liver status. A direct or supported class-level allergy match becomes an unbypassable error state. Other dose-relevant flags require a separate acknowledgement tied to use of an authoritative drug reference. These controls never label the entered dose as verified.
 
 **The Speech Is Always Draft Rule.** Dictation may populate editable fields, but it must never bypass the repeated-field confirmation record or the clinician’s explicit save action.
 

@@ -11,6 +11,31 @@ const SESSION_TIMEOUT_MS = 5000;
 // Sahara returns a committed transcript in six to eight seconds. Past twelve,
 // the kiosk is better off retrying through the file upload route.
 const COMMIT_TIMEOUT_MS = 12000;
+const LANGUAGE_CAPACITY_DEFAULT_MS = 30000;
+const languageCapacityBlockedUntil = new Map();
+
+export function languageCapacityDelayMs(message, fallbackMs = LANGUAGE_CAPACITY_DEFAULT_MS) {
+  if (!/required language not available|language.*not available/i.test(String(message || ""))) return 0;
+  const seconds = Number(String(message).match(/wait\s+(\d+)\s*seconds?/i)?.[1]);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds * 1000 : fallbackMs;
+}
+
+export function noteLanguageCapacityFailure(languageCode, message, now = Date.now()) {
+  const delay = languageCapacityDelayMs(message);
+  if (!delay) return 0;
+  languageCapacityBlockedUntil.set(languageCode, Math.max(languageCapacityBlockedUntil.get(languageCode) || 0, now + delay));
+  return delay;
+}
+
+export function languageCapacityCooldownMs(languageCode, now = Date.now()) {
+  const remaining = Math.max(0, (languageCapacityBlockedUntil.get(languageCode) || 0) - now);
+  if (!remaining) languageCapacityBlockedUntil.delete(languageCode);
+  return remaining;
+}
+
+export function resetLanguageCapacityCooldowns() {
+  languageCapacityBlockedUntil.clear();
+}
 
 export function saharaSttUrl({ languageCode, sampleRate }) {
   const params = new URLSearchParams({
@@ -64,6 +89,16 @@ export function attachSpeechStream(server, { apiKey, supportedLanguages }) {
       return;
     }
 
+    const capacityCooldown = languageCapacityCooldownMs(languageCode);
+    if (capacityCooldown) {
+      // Sahara explicitly asked clients to wait. Do not open another upstream
+      // socket that is guaranteed to fail; make the browser use its already
+      // recorded file immediately for this turn.
+      tell({ type: "error", message: `Live transcription is cooling down for ${Math.ceil(capacityCooldown / 1000)} seconds; using the recording upload.` });
+      client.close();
+      return;
+    }
+
     const startedAt = performance.now();
     const upstream = new WebSocket(saharaSttUrl({ languageCode, sampleRate }), {
       headers: { Authorization: `Bearer ${apiKey}` },
@@ -95,6 +130,7 @@ export function attachSpeechStream(server, { apiKey, supportedLanguages }) {
     const fail = (message) => {
       if (terminal) return;
       terminal = true;
+      noteLanguageCapacityFailure(languageCode, message);
       // The kiosk keeps the recorded audio, so a failure here just sends it back
       // to the file upload route rather than losing the patient's answer.
       console.warn("[Sahara STT] live transcription failed; kiosk falls back to file upload", { languageCode, message });

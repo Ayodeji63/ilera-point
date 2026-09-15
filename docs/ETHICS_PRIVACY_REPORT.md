@@ -70,7 +70,9 @@ Audit and AI-processing tables reject updates. Deletion is rejected until `reten
 
 ### Prescribing limitations
 
-Speech never writes directly. Static validation rejects missing or unrecognized prescription fields, and clinician confirmation is mandatory. The interface now states that the small medication-history matcher is not a comprehensive clinical decision-support system. Stored provenance includes whether the prescription was dictated, the raw transcript, confidence, parse provider, model, prompt version, and warning override.
+Speech never writes directly. Static validation rejects missing or unrecognized prescription fields, and clinician confirmation is mandatory. A visit-specific patient profile records explicit age, pediatric weight, sex recorded at birth, pregnancy and lactation status, drug-allergy status/reaction, current prescription/OTC/herbal/supplement products, kidney/liver status, and other conditions. Unknown is kept distinct from none; Gemini cannot modify this confirmed profile.
+
+The prescription route refuses incomplete profiles, requires the clinician to confirm reviewing the patient factors, and stores the exact snapshot used. A direct or supported class-level allergy match blocks the write. Dose-relevant uncertainty requires a separate stored acknowledgement. These controls do not calculate or certify dose suitability, and the interface states that the medication matcher remains incomplete. See [`CLINICAL_PRESCRIBING_CONTEXT.md`](CLINICAL_PRESCRIBING_CONTEXT.md) for the evidence and residual limits.
 
 ### Inclusion and accessibility
 
@@ -103,6 +105,7 @@ Every language/provider release decision must record consented and de-identified
 | Clinician dictation text | Gemini | Prescription draft extraction | Prescription audit transcript and hashed AI event |
 | Optional full video | Supabase private Storage | Human clinician assessment | Until video retention deadline |
 | Patient/clinical records | Supabase | Clinical workflow | Until approved clinical retention deadline |
+| Visit-specific prescribing context | Supabase | Clinician review and prescription audit | Within the consultation and prescription snapshot until the clinical retention deadline |
 
 The controller must document provider locations, processor terms, sub-processors, security measures, lawful basis, and cross-border transfer mechanism. The Nigeria Data Protection Commission explains that the NDP Act covers processing in Nigeria and processing of Nigerian data subjects, and that overseas transfers require adequate protection or another lawful basis: <https://ndpc.gov.ng/faqs/>.
 
@@ -127,6 +130,7 @@ WHO recommends lifecycle documentation, clear intended use, human intervention, 
 - Third-party provider behavior, retention, and model updates remain external dependencies.
 - Translated privacy copy and language quality are not yet independently validated.
 - The medication check is deliberately incomplete.
+- The structured prescribing context improves completeness but does not replace diagnosis-specific assessment, current drug monographs, renal/hepatic measurements, laboratory data, or pharmacist review.
 - No software control can establish sensor clinical validity without reference-device studies.
 
 These limitations must remain visible in demonstrations, evaluations, funding submissions, and deployment decisions.

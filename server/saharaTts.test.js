@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
-import { describeSessionFailure, normalizeSaharaAudioUrl, saharaPoolKey, saharaSocketOptions, saharaSocketUrl, submitTextChunks } from "./saharaTts.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { describeSessionFailure, normalizeSaharaAudioUrl, saharaPoolKey, saharaSocketOptions, saharaSocketUrl, submitTextChunks, synthesizeWithSaharaGenerate, synthesizeWithSaharaQueue } from "./saharaTts.js";
 import { hasStreamSlot, resetStreamBudget } from "./saharaStreamBudget.js";
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("Sahara streaming TTS configuration", () => {
   it("connects without negotiating compression", () => {
@@ -55,5 +57,33 @@ describe("Sahara streaming TTS configuration", () => {
     expect(normalizeSaharaAudioUrl("http://intron-transcribe.s3.amazonaws.com/audio.wav").href)
       .toBe("https://intron-transcribe.s3.amazonaws.com/audio.wav");
     expect(() => normalizeSaharaAudioUrl("https://example.com/audio.wav")).toThrow(/invalid audio URL/i);
+  });
+
+  it("uses enqueue and follows the returned text id for preload speech", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { text_id: "text-1" }, message: "queued" }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { processing_status: "TTS_TEXT_AUDIO_GENERATED", audio_path: "https://infer.voice.intron.io/audio.wav" } }) })
+      .mockResolvedValueOnce({ ok: true, arrayBuffer: async () => new TextEncoder().encode("wav").buffer });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const audio = await synthesizeWithSaharaQueue({ chunks: ["hello world"], voiceAccent: "yoruba", voiceGender: "female", language: "en", apiKey: "key", signal: new AbortController().signal, returnChunks: true });
+
+    expect(fetchMock.mock.calls[0][0]).toContain("/tts/v1/enqueue");
+    expect(fetchMock.mock.calls[1][0]).toContain("/tts/v1/status/text-1");
+    expect(audio[0].toString()).toBe("wav");
+  });
+
+  it("continues a timed-out generate job instead of submitting it again", async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: false, status: 503, json: async () => ({ data: { text_id: "slow-1", processing_status: "TTS_TEXT_AUDIO_PROCESSING" } }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { processing_status: "TTS_TEXT_AUDIO_GENERATED", audio_path: "https://infer.voice.intron.io/slow.wav" } }) })
+      .mockResolvedValueOnce({ ok: true, arrayBuffer: async () => new TextEncoder().encode("done").buffer });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const audio = await synthesizeWithSaharaGenerate({ chunks: ["hello world"], voiceAccent: "yoruba", voiceGender: "female", language: "en", apiKey: "key", signal: new AbortController().signal, returnChunks: true });
+
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/generate"))).toHaveLength(1);
+    expect(fetchMock.mock.calls[1][0]).toContain("/tts/v1/status/slow-1");
+    expect(audio[0].toString()).toBe("done");
   });
 });

@@ -7,6 +7,7 @@ import { canSeeEveryTier, canWorkCase, routeConsultation, tierForRole } from "..
 import { escalateInBackground } from "../redFlagEscalation.js";
 import { recordAuditEvent } from "../auditEvents.js";
 import { CONSENT_NOTICE_VERSION, expiresAfterDays, retentionDays, safeRequestMetadata } from "../privacy.js";
+import { validateClinicalProfile } from "../../shared/clinicalProfile.js";
 
 export const consultationsRouter = Router();
 const videoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -16,6 +17,15 @@ consultationsRouter.post("/", videoUpload.single("video"), async (req, res) => {
   try {
     const payload = JSON.parse(req.body.consultation || "{}");
     if (!payload.patient_id || !Array.isArray(payload.turns) || !payload.structured_record) return res.status(400).json({ error: "A complete consultation record is required." });
+    const profileValidation = validateClinicalProfile(payload.structured_record.patient_profile);
+    if (!profileValidation.valid) {
+      return res.status(400).json({
+        error: "Age, weight where required, sex at birth, pregnancy and breastfeeding status, allergies, current medicines, kidney/liver status, and state must be confirmed before this consultation is sent.",
+        code: "clinical_profile_required",
+        fields: profileValidation.errors.map(({ field }) => field),
+      });
+    }
+    payload.structured_record.patient_profile = profileValidation.profile;
     if (payload.consent_notice_version !== CONSENT_NOTICE_VERSION || payload.audio_processing_consent !== true) {
       return res.status(400).json({ error: "Current microphone and data-processing consent is required before this consultation can be saved." });
     }

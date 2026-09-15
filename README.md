@@ -13,6 +13,7 @@ IleraPoint is clinician-support software, not an autonomous diagnosis, triage, o
 - Videos, audit evidence, approved benchmark data, and clinical records have configurable retention deadlines and a dry-run-first cleanup command.
 - Non-English voice modes are labelled supervised until representative clinical evaluation meets an approved threshold.
 - The medication matcher is a limited reference, not a complete interaction or contraindication check.
+- Age, pediatric weight, sex recorded at birth, pregnancy/lactation, allergies/reactions, current prescription/OTC/herbal products, and kidney/liver status are confirmed for each visit and shown again before prescribing. Unknown remains unknown.
 - The existing deterministic emergency rule is intentionally unchanged and is not a comprehensive emergency screen.
 
 Read the full implementation, data-flow, retention, inclusion, governance, residual-risk, DPIA, and incident-response report in [`docs/ETHICS_PRIVACY_REPORT.md`](docs/ETHICS_PRIVACY_REPORT.md). The shorter system statement is in [`RESPONSIBLE_AI.md`](RESPONSIBLE_AI.md).
@@ -47,7 +48,8 @@ Open `http://localhost:5173/yoruba-image-to-speech` directly; this public utilit
 
 - `Tap to begin` opens patient record access with separate returning- and new-patient routes.
 - Returning patients search by their complete normalized phone number, optionally disambiguated by exact full name; results mask the phone number and searches are throttled.
-- New patients enter their name and phone number, create a record, and continue directly to recording consent.
+- New patients enter their name and phone number, create a record, and continue to the visit-specific clinical-details check before recording consent.
+- Returning and new patients next complete a four-stop prescribing-context check: about you, allergies/medicines, health conditions, then review. The profile is visit-specific because pregnancy, medicines, allergies, weight, and organ status can change.
 - No photograph or biometric information is captured, processed, transmitted, or stored.
 - A versioned consent screen explains required voice-provider processing, optional full-session video, optional de-identified research consideration, retention, correction, and withdrawal.
 - After consent, pulse/oxygen and temperature use separate screens and separate Start buttons. No sensor reading begins on page load. Pulse captures a timestamped 10-second MAX30102 window and may retry automatically once; continuing then opens the independently started MLX90614 forehead screen.
@@ -99,6 +101,11 @@ Before a prescription is written, [`server/medicationSafety.js`](server/medicati
 - It **warns, it does not block.** A blanket block would be its own kind of unsafe. The clinician reads the warning and can prescribe anyway; the override is stored on the prescription.
 - It also flags prescribing something the patient already reports taking, which is the commonest route to an accidental double dose.
 - The list is small, conservative, and not a formulary. It is a reference check, not a clinical decision, and the UI says so.
+- The API also requires the visit's patient-confirmed clinical profile and an explicit clinician check of age/weight, allergy reaction, current prescription/OTC/herbal products, pregnancy/lactation, and kidney/liver status.
+- A direct or supported class-level match to a recorded drug allergy blocks the write. Dose-relevant uncertainty creates a separate review warning and stored acknowledgement.
+- This does **not** certify a dose as correct. Indication, formulation, route, renal/hepatic measurements, interactions, relevant tests, and the current drug monograph still require clinician judgment.
+
+The source-backed rationale, data model, behavior, and residual limitations are documented in [`docs/CLINICAL_PRESCRIBING_CONTEXT.md`](docs/CLINICAL_PRESCRIBING_CONTEXT.md).
 
 ### Red-flag voice escalation
 
@@ -144,7 +151,7 @@ Self-service signup needs working email delivery: the project requires email con
 - `src/lib/providers/SpeechProvider.js`: shared interface and Sahara provider.
 - `src/components/YorubaImageSpeechScreen.jsx`: public image upload, editable Yoruba transcription, Sahara playback, and WAV download screen.
 - `src/lib/interview/session.js`: full turn history, record snapshots, rollback, and direct record editing.
-- `server/index.js`: Sahara STT with adaptive status polling, pooled streaming TTS with Sahara's synchronous endpoint as a provider-only recovery path, and one history-aware Gemini structured-output call per turn.
+- `server/index.js`: Sahara live STT with adaptive upload fallback, rate-aware streaming TTS with queue-backed preloads and synchronous provider recovery, and one history-aware Gemini structured-output call per turn.
 - `server/yorubaOcr.js`: exact Yoruba text extraction from images using Gemini multimodal input.
 - `server/yorubaScript.js`: Yoruba orthography restoration, code-switched English preservation, and screenplay cast extraction.
 - `server/routes/patients.js`: patient registration and throttled exact-phone record lookup.
@@ -160,7 +167,7 @@ Self-service signup needs working email delivery: the project requires email con
 
 ## Supabase setup
 
-Run the migrations in order in the Supabase SQL editor or migration CLI. After `0001`–`0009`, apply [`0010_ethics_privacy.sql`](supabase/migrations/0010_ethics_privacy.sql) for consent records, hashed expiring patient tokens, retention fields, benchmark provenance, and append-only audit tables. It invalidates legacy plaintext result tokens. The Express server uses the service-role key; never place that key in a `VITE_` variable.
+Run the migrations in order in the Supabase SQL editor or migration CLI. After `0001`–`0009`, apply [`0010_ethics_privacy.sql`](supabase/migrations/0010_ethics_privacy.sql) for consent records, hashed expiring patient tokens, retention fields, benchmark provenance, and append-only audit tables. Then apply [`0011_clinical_prescribing_context.sql`](supabase/migrations/0011_clinical_prescribing_context.sql); it repairs a missing legacy `interaction_override`, adds the prescription's patient-context snapshot and acknowledgements, and reloads the Supabase schema cache. Migration 0010 invalidates legacy plaintext result tokens. The Express server uses the service-role key; never place that key in a `VITE_` variable.
 
 Preview retention cleanup with `pnpm privacy:retention`; apply it from an authorised scheduled backend using `pnpm privacy:retention -- --apply`. Clinical-record deletion remains disabled unless the deploying clinic approves its records schedule and sets `RETENTION_DELETE_CLINICAL_RECORDS=1`.
 
@@ -233,6 +240,16 @@ Open `https://ilera-point.vercel.app` once in a normal Chromium window and choos
 chromium --kiosk --no-first-run https://ilera-point.vercel.app
 ```
 
+To make the deployed application start in kiosk mode automatically whenever the Raspberry Pi desktop logs in, run the supplied installer as the desktop user (do not prefix the command with `sudo`):
+
+```bash
+cd /home/ayo/ilera-point
+KIOSK_URL=https://ilera-point.vercel.app ./scripts/install-kiosk-mode.sh
+~/.local/bin/ilerapoint-kiosk --setup
+```
+
+In the setup window, allow microphone, camera, and Local Network Access, then close Chromium. Run `sudo raspi-config`, enable **Desktop Autologin**, and reboot. The installer creates a dedicated persistent Chromium profile, adds the launcher to Labwc autostart (or XDG autostart on an older desktop), permits the Vercel origin to reach the loopback vitals API, and disables desktop screen blanking. Do not use Chromium incognito mode because its site permissions would not survive a reboot. Do not run `pnpm dev` on the Pi: the deployed page comes from Vercel and `ilerapoint-local-api.service` already owns port 8787.
+
 If vitals say the local service is unavailable, first run both `curl` checks above, then inspect Chromium's site permissions for Local Network Access. The rest of the kiosk can continue through Render even when sensor capture is skipped.
 
 ## Hausa diagnostics
@@ -254,11 +271,13 @@ npm run build
 
 ## Speech playback troubleshooting
 
-Sahara is the only interview playback voice. The server keeps a warm, single-use Sahara streaming session per accent/gender/language key and opens its replacement in the background; set `SAHARA_TTS_POOL_SIZE` from 1 to 3 to tune concurrency. Sahara closes a session after `COMMIT`, so committed sockets are never reused. Text chunks are submitted together and acknowledgements are awaited in parallel. If Sahara sends malformed WebSocket frames after a fresh retry, the server recovers through Sahara's own synchronous generate endpoint. No mock, browser, FFmpeg, or flite audio is substituted.
+Sahara is the only interview playback voice. Background first-question and acknowledgement preloads use Sahara's queue/status API, so they do not consume the small live WebSocket-upgrade allowance. Interactive questions use streaming delivery and report both first-audio and total latency. Sahara closes a session after `COMMIT`, so the server does not open speculative replacement sockets; if a stream fails, it switches immediately to Sahara's generate endpoint instead of repeating the same socket delay. A generate response containing a queued text id is completed through Sahara's status endpoint rather than resubmitted. No mock, browser, FFmpeg, or flite audio is substituted.
+
+Live Sahara STT remains the preferred path and transcribes while the patient speaks. If Sahara reports that the requested language is temporarily unavailable, the server honours its requested cooldown for that language and sends subsequent turns directly through the recorded-file fallback during the cooldown. The patient's audio is therefore preserved and the service avoids repeatedly opening upstream sockets that Sahara has already said will fail.
 
 The server allows up to 20 seconds for Sahara generation inside a 25-second request envelope, and the browser allows 28 seconds including transfer and decoding. These are failure ceilings, not added delays: successful audio plays immediately. Short acknowledgement phrases are generated into the existing browser cache ahead of time and played while Gemini prepares the next question, removing dead air without blocking processing. Question and summary text is split at punctuation and receives explicit pauses before WAV assembly.
 
-Patient-turn transcription uses Sahara's asynchronous file endpoint with LLM transcript corrections disabled, an initial status check after 350 ms followed by adaptive backoff up to 1.2 seconds, and a 15-second server deadline. Interview extraction defaults to `GEMINI_MODEL` (`gemini-2.5-flash-lite` unless set) with thinking disabled and a 10-second server deadline. Server logs and `Server-Timing` headers report each stage separately. Repeated question and acknowledgement audio is cached in memory for the lifetime of the API process.
+Patient-turn transcription uses Sahara's asynchronous file endpoint with LLM transcript corrections disabled, an initial status check after 350 ms followed by adaptive backoff up to 1.2 seconds, and a 24-second server deadline. Interview extraction defaults to `GEMINI_MODEL` (`gemini-2.5-flash-lite` unless set) with thinking disabled and a 10-second server deadline. Server logs and `Server-Timing` headers report each stage separately. Repeated question and acknowledgement audio is cached in memory for the lifetime of the API process.
 
 For Gemini failover, keep `GEMINI_API_KEY` for one key or set `GEMINI_API_KEYS=key-one,key-two,key-three`; both settings may be used together and duplicates are removed. The server round-robins healthy keys and immediately switches on connection failures, 429 quota/rate-limit responses, authentication failures, retryable timeout responses, and transient 5xx responses. It does not retry malformed 400 requests. Failed keys receive a short cooldown, and key values are never written to logs. Gemini limits are project-scoped, so multiple keys from the same Google project do not provide additional quota. Use the pool only for legitimately separate projects or credential availability; sustained traffic should use an appropriate paid tier or quota increase.
 

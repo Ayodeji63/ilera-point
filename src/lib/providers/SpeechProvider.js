@@ -8,16 +8,16 @@ function speechKey(text, voiceAccent, voiceGender, language) {
   return JSON.stringify([text.trim(), voiceAccent, voiceGender, language]);
 }
 
-function synthesizeBody(text, voiceAccent, voiceGender, language, progressive) {
+function synthesizeBody(text, voiceAccent, voiceGender, language, progressive, preload = false) {
   const { chunks, pausesMs } = buildSpeechPlan(text);
-  return JSON.stringify({ chunks, pausesMs, voiceAccent, voiceGender, language, requireSahara: true, mode: "kiosk", ...(progressive ? { progressive: true } : {}) });
+  return JSON.stringify({ chunks, pausesMs, voiceAccent, voiceGender, language, requireSahara: true, mode: "kiosk", ...(progressive ? { progressive: true } : {}), ...(preload ? { preload: true } : {}) });
 }
 
-async function requestSpeech(text, voiceAccent, voiceGender, language, signal) {
+async function requestSpeech(text, voiceAccent, voiceGender, language, signal, preload = false) {
   const response = await fetch("/api/speech/synthesize", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: synthesizeBody(text, voiceAccent, voiceGender, language, false),
+    body: synthesizeBody(text, voiceAccent, voiceGender, language, false, preload),
     signal,
   });
   if (!response.ok) {
@@ -138,7 +138,18 @@ export class SaharaSpeechProvider extends SpeechProvider {
   }
 
   preload(text, voiceAccent, voiceGender, language = "en") {
-    return this.synthesize(text, voiceAccent, voiceGender, language).catch(() => null);
+    const key = speechKey(text, voiceAccent, voiceGender, language);
+    if (synthesizedSpeech.has(key)) return Promise.resolve(synthesizedSpeech.get(key));
+    let request = speechRequests.get(key);
+    if (!request) {
+      request = requestSpeech(text, voiceAccent, voiceGender, language, undefined, true);
+      speechRequests.set(key, request);
+    }
+    return request.then((audio) => {
+      if (synthesizedSpeech.size >= 12) synthesizedSpeech.delete(synthesizedSpeech.keys().next().value);
+      synthesizedSpeech.set(key, audio);
+      return audio;
+    }).catch(() => null).finally(() => speechRequests.delete(key));
   }
 }
 

@@ -4,6 +4,7 @@ export const EMPTY_RECORD = {
   associated_symptoms: [],
   negative_symptoms_checked: [],
   medication_history: "",
+  patient_profile: null,
   vitals: null,
   still_missing: ["main concern", "onset", "associated symptoms", "medication history"],
 };
@@ -14,13 +15,27 @@ function copyRecord(record) {
     chief_complaints: [...(record.chief_complaints || [])],
     associated_symptoms: [...(record.associated_symptoms || [])],
     negative_symptoms_checked: [...(record.negative_symptoms_checked || [])],
+    patient_profile: record.patient_profile ? { ...record.patient_profile } : null,
     vitals: record.vitals ? { ...record.vitals } : null,
     still_missing: [...(record.still_missing || [])],
   };
 }
 
-export function createInterviewSession(firstQuestion) {
-  return { turns: [], record: copyRecord(EMPTY_RECORD), turn_count: 0, current_question: firstQuestion, record_snapshots: [] };
+export function createInterviewSession(firstQuestion, patientProfile = null) {
+  const profile = patientProfile ? { ...patientProfile } : null;
+  const medicationHistory = profile?.medication_status === "current"
+    ? profile.current_medications
+    : profile?.medication_status === "none" ? "None reported" : "";
+  const stillMissing = medicationHistory
+    ? EMPTY_RECORD.still_missing.filter((item) => item !== "medication history")
+    : EMPTY_RECORD.still_missing;
+  return {
+    turns: [],
+    record: copyRecord({ ...EMPTY_RECORD, patient_profile: profile, medication_history: medicationHistory, still_missing: stillMissing }),
+    turn_count: 0,
+    current_question: firstQuestion,
+    record_snapshots: [],
+  };
 }
 
 export function createTurn(session, transcript) {
@@ -65,4 +80,14 @@ export function updateSessionRecord(session, field, value) {
   if (isEmpty && missingLabels[field]) stillMissing.push(missingLabels[field]);
 
   return { ...session, record: copyRecord({ ...session.record, [field]: value, still_missing: [...new Set(stillMissing)] }) };
+}
+
+export function updateSessionClinicalProfile(session, patientProfile) {
+  const medicationHistory = patientProfile?.medication_status === "current"
+    ? patientProfile.current_medications
+    : patientProfile?.medication_status === "none" ? "None reported" : session.record.medication_history;
+  return {
+    ...session,
+    record: copyRecord({ ...session.record, patient_profile: { ...patientProfile }, medication_history: medicationHistory }),
+  };
 }

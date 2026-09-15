@@ -43,6 +43,7 @@ The product is used on a shared full-screen kiosk in a clinic or community healt
 - A public, authentication-free Yoruba image-to-speech tool extracts editable text from a JPG, PNG, or WebP image, restores Yoruba orthography without translating code-switched English, assigns editable Sahara voices to screenplay characters, and generates a paced downloadable WAV.
 - API credentials remain server-side.
 - Returning patients use throttled exact full-phone lookup with masked results; new patients register a name and phone before the interview.
+- Every visit confirms age, pediatric weight, sex recorded at birth, state, pregnancy/lactation, drug-allergy status and reaction, current prescription/OTC/herbal/supplement products, kidney/liver status, and other conditions before consent. Unknown remains distinct from none.
 - The kiosk performs no biometric identification and captures no photograph during patient record access.
 - Versioned consent distinguishes required short voice processing, optional continuous 640×480 audio/video, and optional future de-identified research consideration. Video is normalized to `video/webm`, stored privately for human clinician review only, and can be withdrawn from the waiting screen.
 - After recording consent and before the voice interview, vitals use two separate patient-controlled screens. The pulse/oxygen screen remains idle until Start is pressed; after it finishes or is skipped, the kiosk navigates to a temperature screen that also remains idle until Start is pressed. The patient is never asked to position for both sensors simultaneously.
@@ -56,7 +57,7 @@ The product is used on a shared full-screen kiosk in a clinic or community healt
 - Live clinical speech is separated from research datasets. Content-minimized append-only events record clinical access and AI provider/model/prompt provenance.
 - Non-English voice modes remain supervised and visibly require transcript confirmation until representative clinical benchmarks meet an approved deployment threshold.
 - Doctors authenticate with email/password, review an oldest-first queue including captured temperature and heart rate when present, approve or flag cases, and issue typed or voice-dictated prescriptions.
-- Dictation is transcribed by Sahara, parsed into a non-authoritative draft, checked by a static primary-care formulary and the deterministic medication-history safety layer, and always requires explicit clinician confirmation before writing.
+- Dictation is transcribed by Sahara, parsed into a non-authoritative draft, checked by a static primary-care formulary and deterministic safety layers, and always requires explicit clinician confirmation before writing. The clinician reviews the visit-specific prescribing context; direct allergy matches block the write and dose-relevant uncertainty requires a stored acknowledgement.
 - No AI video analysis, live video calls, pharmacy inventory, diagnosis, autonomous prescribing, or dispensing.
 
 ## Brand Commitments

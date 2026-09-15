@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { Activity, Check, Pencil, RotateCcw, Save, Stethoscope, Thermometer, Volume2, Wind, X } from "lucide-react";
+import { Activity, Check, Pencil, RotateCcw, Save, Stethoscope, Thermometer, UserRoundCog, Volume2, Wind, X } from "lucide-react";
 import BrandHeader from "./BrandHeader";
+import ClinicalProfileDetails from "./ClinicalProfileDetails";
 
 function EditableRow({ field, label, value, displayValue, array = false, onSave }) {
   const [editing, setEditing] = useState(false);
@@ -15,7 +16,7 @@ function EditableRow({ field, label, value, displayValue, array = false, onSave 
   return <div className="grid gap-3 border-b border-[#d8e1dc] py-5 md:grid-cols-[190px_1fr_auto] md:items-center"><dt className="font-black text-[#527269]">{label}</dt><dd className="min-w-0">{editing ? <input autoFocus maxLength="500" value={draft} onChange={(event) => setDraft(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter") save(); if (event.key === "Escape") cancel(); }} aria-label={`Edit ${label}`} className="min-h-12 w-full rounded-[12px] bg-[#edf0eb] px-4 text-lg font-extrabold text-[#103f33]" /> : <span className="overflow-wrap-anywhere text-lg font-extrabold text-[#103f33]">{displayValue || "Not provided"}</span>}</dd><div className="flex gap-2">{editing ? <><button onClick={save} className="grid h-12 w-12 place-items-center rounded-[12px] bg-[#1d6e59] text-white" aria-label={`Save ${label}`}><Save size={20} /></button><button onClick={cancel} className="grid h-12 w-12 place-items-center rounded-[12px] bg-[#e3e7e3] text-[#103f33]" aria-label={`Cancel editing ${label}`}><X size={20} /></button></> : <button onClick={() => setEditing(true)} className="flex min-h-12 items-center gap-2 rounded-[12px] bg-[#e7f1ed] px-4 font-black text-[#155944]" aria-label={`Edit ${label}`}><Pencil size={18} />Edit</button>}</div></div>;
 }
 
-export default function SummaryScreen({ record, onUpdateRecord, onSpeak, speaking, saving, error, onReview, onReset }) {
+export default function SummaryScreen({ record, onUpdateRecord, onSpeak, speaking, saving, error, onEditProfile, onReview, onReset }) {
   return (
     <main className="kiosk-shell min-h-[100dvh]">
       <BrandHeader compact />
@@ -24,6 +25,7 @@ export default function SummaryScreen({ record, onUpdateRecord, onSpeak, speakin
           <div><div className="flex items-center gap-3 text-[#1d6e59]"><Check className="rounded-full bg-[#1d6e59] p-1 text-white" size={30} /><span className="text-lg font-black">Check-in complete</span></div><h1 className="mt-4 text-5xl font-black tracking-[-.04em] text-[#103f33] md:text-7xl">Check before you continue.</h1><p className="mt-4 text-lg font-semibold text-[#527269]">Tap Edit beside anything that is not right.</p></div>
           <button onClick={onSpeak} disabled={speaking} className="flex min-h-14 items-center justify-center gap-3 rounded-full bg-[#f2d533] px-6 font-black text-[#103f33] disabled:opacity-60"><Volume2 />{speaking ? "Reading summary…" : "Read this aloud"}</button>
         </div>
+        <section className="mt-6 rounded-[16px] bg-white p-5 shadow-[0_12px_30px_rgba(16,63,51,.07)] md:p-6" aria-labelledby="profile-summary-heading"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h2 id="profile-summary-heading" className="text-2xl font-black text-[#103f33]">Details medicines depend on</h2><p className="mt-1 font-semibold text-[#527269]">Confirmed for this visit. Unknown answers stay visible to the clinician.</p></div><button onClick={onEditProfile} className="flex min-h-12 items-center justify-center gap-2 rounded-[12px] bg-[#e7f1ed] px-4 font-black text-[#155944]"><UserRoundCog size={19} />Review these details</button></div><ClinicalProfileDetails profile={record.patient_profile} /></section>
         <dl className="mt-3">
           <EditableRow field="chief_complaints" label="Main concern" value={record.chief_complaints} displayValue={record.chief_complaints.join(", ")} array onSave={onUpdateRecord} />
           <EditableRow field="onset" label="When it started" value={record.onset} displayValue={record.onset} onSave={onUpdateRecord} />

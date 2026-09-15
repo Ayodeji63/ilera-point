@@ -87,5 +87,6 @@ describe("SaharaSpeechProvider", () => {
     await provider.synthesize(text, "yoruba", "female", "en");
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toMatchObject({ preload: true, mode: "kiosk" });
   });
 });

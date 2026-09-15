@@ -1,8 +1,9 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Check, Mic, PenLine, Pill, RotateCcw, Save, Square, Volume2 } from "lucide-react";
 import { createPrescription, parsePrescription } from "../lib/consultations";
 import { useClinicianDictation } from "../lib/media/useClinicianDictation";
 import { speechProvider } from "../lib/providers/SpeechProvider";
+import { assessPrescriptionContext } from "../../shared/clinicalProfile.js";
 
 const LANGUAGES = [
   ["en", "English"], ["yo", "Yorùbá + English"], ["pcm", "Pidgin + English"],
@@ -24,13 +25,15 @@ const STATUS_COPY = {
 };
 const emptyForm = { drug: "", dosage: "", frequency: "", duration: "", instructions: "" };
 
-export default function PrescriptionForm({ consultationId, onComplete }) {
+export default function PrescriptionForm({ consultationId, patientProfile, onComplete }) {
   const [form, setForm] = useState(emptyForm);
   const [language, setLanguage] = useState("en");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [warning, setWarning] = useState("");
   const [dictation, setDictation] = useState(null);
+  const [factorsConfirmed, setFactorsConfirmed] = useState(false);
+  const [contextAcknowledged, setContextAcknowledged] = useState(false);
   const warningAudio = useRef(null);
   const saving = useRef(false);
 
@@ -61,6 +64,8 @@ export default function PrescriptionForm({ consultationId, onComplete }) {
         instructions: result.prescription.instructions,
       });
       setDictation({ transcript, confidence: result.prescription.confidence });
+      setFactorsConfirmed(false);
+      setContextAcknowledged(false);
       setWarning(result.warning || "");
       if (result.warning) void readWarning(result.warning);
     } catch (failure) {
@@ -68,6 +73,8 @@ export default function PrescriptionForm({ consultationId, onComplete }) {
       // visible so the clinician can deliberately type the intended medicine.
       setDictation({ transcript, invalid: true });
       setForm(emptyForm);
+      setFactorsConfirmed(false);
+      setContextAcknowledged(false);
       setError(failure.message);
     }
   }, [consultationId, language, readWarning]);
@@ -75,14 +82,32 @@ export default function PrescriptionForm({ consultationId, onComplete }) {
   const dictationControl = useClinicianDictation(language, handleTranscript);
   const recording = ["starting", "waiting", "recording", "finishing"].includes(dictationControl.status);
   const processing = ["transcribing", "parsing"].includes(dictationControl.status);
+  const clinicalContext = useMemo(() => assessPrescriptionContext(form.drug, patientProfile), [form.drug, patientProfile]);
+  const contextBlocksSave = !clinicalContext.valid || Boolean(clinicalContext.allergyMatch);
+  const contextNeedsAcknowledgement = clinicalContext.warnings.length > 0;
 
   const change = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
+    if (field === "drug") setContextAcknowledged(false);
     setError("");
   };
 
   const save = async ({ acknowledged = false, confirmed = false } = {}) => {
     if (saving.current || (dictation && !dictation.invalid && !confirmed)) return;
+    if (contextBlocksSave) {
+      setError(clinicalContext.allergyMatch
+        ? `Prescription blocked: ${form.drug || "this drug"} may match the recorded allergy. Return to the case and re-assess before prescribing.`
+        : "This older case does not contain complete patient-confirmed prescribing details. Re-assess the patient before prescribing.");
+      return;
+    }
+    if (!factorsConfirmed) {
+      setError("Confirm that you reviewed the patient factors before saving.");
+      return;
+    }
+    if (contextNeedsAcknowledgement && !contextAcknowledged) {
+      setError("Review and acknowledge the dose-relevant patient factors before saving.");
+      return;
+    }
     saving.current = true;
     setBusy(true);
     setError("");
@@ -94,6 +119,8 @@ export default function PrescriptionForm({ consultationId, onComplete }) {
         raw_transcript: dictation?.transcript || null,
         parse_confidence: dictation?.confidence ?? null,
         confirmed_dictation: confirmed,
+        patient_factors_confirmed: factorsConfirmed,
+        acknowledged_clinical_context: contextAcknowledged,
       });
       onComplete();
     } catch (failure) {
@@ -133,13 +160,15 @@ export default function PrescriptionForm({ consultationId, onComplete }) {
       </div>
       <label className="mt-4 block font-black">Instructions<textarea rows="3" disabled={busy} value={form.instructions} onChange={(event) => change("instructions", event.target.value)} className="mt-2 w-full resize-none rounded-[14px] bg-[#f1f3ee] p-4 placeholder:text-[#45655d] focus:outline-none focus-visible:ring-4 focus-visible:ring-[#0a78ff] disabled:opacity-60" /></label>
 
+      <ClinicalContextCheck context={clinicalContext} factorsConfirmed={factorsConfirmed} onFactorsConfirmed={(checked) => { setFactorsConfirmed(checked); setError(""); }} contextAcknowledged={contextAcknowledged} onContextAcknowledged={(checked) => { setContextAcknowledged(checked); setError(""); }} />
+
       {dictation && !dictation.invalid && <Confirmation form={form} confidence={dictation.confidence} />}
       {warning && <Warning warning={warning} onRead={() => readWarning()} onAcknowledge={dictation && !dictation.invalid ? null : () => save({ acknowledged: true })} busy={busy} />}
 
       {dictation && !dictation.invalid ? <div className="mt-5 grid gap-3 sm:grid-cols-[.7fr_1.3fr]">
         <button type="button" disabled={busy} onClick={() => { setDictation(null); setWarning(""); }} className="flex min-h-14 items-center justify-center gap-2 rounded-[14px] bg-[#e3e7e3] px-4 font-black text-[#103f33] disabled:opacity-60"><PenLine />Discard and type</button>
-        <button type="button" onClick={() => save({ acknowledged: Boolean(warning), confirmed: true })} disabled={busy} className="flex min-h-14 items-center justify-center gap-2 rounded-[14px] bg-[#103f33] px-5 font-black text-white disabled:opacity-50"><Check />{busy ? "Saving…" : warning ? "I considered the warning — confirm and prescribe" : "Confirm and save prescription"}</button>
-      </div> : <button disabled={busy || processing || recording} className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-[14px] bg-[#103f33] px-5 font-black text-white disabled:opacity-50"><Save />{busy ? "Saving…" : "Save typed prescription and complete"}</button>}
+        <button type="button" onClick={() => save({ acknowledged: Boolean(warning), confirmed: true })} disabled={busy || contextBlocksSave || !factorsConfirmed || (contextNeedsAcknowledgement && !contextAcknowledged)} className="flex min-h-14 items-center justify-center gap-2 rounded-[14px] bg-[#103f33] px-5 font-black text-white disabled:opacity-50"><Check />{busy ? "Saving…" : warning ? "I considered the warning — confirm and prescribe" : "Confirm and save prescription"}</button>
+      </div> : <button disabled={busy || processing || recording || contextBlocksSave || !factorsConfirmed || (contextNeedsAcknowledgement && !contextAcknowledged)} className="mt-5 flex min-h-14 w-full items-center justify-center gap-2 rounded-[14px] bg-[#103f33] px-5 font-black text-white disabled:opacity-50"><Save />{busy ? "Saving…" : "Save typed prescription and complete"}</button>}
     </form>
   </div>;
 }
@@ -153,6 +182,15 @@ function Confirmation({ form, confidence }) {
   return <section className="mt-5 rounded-[14px] bg-[#e7f1ed] p-5" aria-labelledby="confirm-heading"><div className="flex gap-3"><Check className="shrink-0 text-[#1d6e59]" /><div><h3 id="confirm-heading" className="text-xl font-black text-[#103f33]">Confirm what will be written</h3><p className="mt-1 font-semibold text-[#527269]">This draft came from speech. Check the drug and dose against the patient record before confirming.</p></div></div><dl className="mt-4 grid gap-x-5 sm:grid-cols-2">{rows.map(([label, value]) => <div key={label} className="border-b border-[#b8d5cc] py-3"><dt className="text-sm font-black uppercase tracking-[.08em] text-[#527269]">{label}</dt><dd className="mt-1 font-black text-[#103f33]">{value || "Missing"}</dd></div>)}</dl><p className="mt-4 text-sm font-bold text-[#527269]">Parse confidence: {Math.round(confidence * 100)}%. Confidence never replaces your review.</p></section>;
 }
 
+function ClinicalContextCheck({ context, factorsConfirmed, onFactorsConfirmed, contextAcknowledged, onContextAcknowledged }) {
+  if (!context.valid) return <div role="alert" className="mt-5 rounded-[14px] bg-[#fff0e8] p-5 text-[#8b311f]"><div className="flex gap-3"><AlertTriangle className="shrink-0" /><div><strong className="block text-lg">Patient prescribing details are incomplete</strong><p className="mt-2 font-bold leading-relaxed">This case cannot be prescribed from IleraPoint. Re-assess the patient and confirm age, pediatric weight where required, allergies, medicines, pregnancy and breastfeeding, and kidney/liver status.</p></div></div></div>;
+  if (context.allergyMatch) return <div role="alert" className="mt-5 rounded-[14px] bg-[#fff0e8] p-5 text-[#8b311f]"><div className="flex gap-3"><AlertTriangle className="shrink-0" /><div><strong className="block text-lg">Prescription blocked by recorded drug allergy</strong><p className="mt-2 font-bold leading-relaxed">Recorded allergy: {context.allergyMatch}. Re-assess and correct the allergy record or choose a clinically appropriate medicine. This block cannot be bypassed on this screen.</p></div></div></div>;
+  return <section className="mt-5 rounded-[14px] bg-[#e7f1ed] p-5 text-[#103f33]" aria-labelledby="patient-factor-heading"><h3 id="patient-factor-heading" className="text-xl font-black">Confirm patient factors before prescribing</h3><p className="mt-2 font-semibold leading-relaxed text-[#527269]">This confirms that the facts were reviewed. It does not verify that the dose is correct.</p>
+    {context.warnings.length > 0 && <div className="mt-4 rounded-[12px] bg-[#fff2c7] p-4 text-[#6d5510]"><strong className="block">Dose-relevant review needed</strong><ul className="mt-2 list-disc space-y-2 pl-5 font-bold">{context.warnings.map((item) => <li key={item}>{item}</li>)}</ul><label className="mt-4 flex cursor-pointer items-start gap-3 rounded-[10px] bg-white p-3 font-black text-[#103f33]"><input type="checkbox" checked={contextAcknowledged} onChange={(event) => onContextAcknowledged(event.target.checked)} className="mt-1 size-5 shrink-0 accent-[#1d6e59]" />I reviewed these warnings against an authoritative drug reference and the clinical assessment.</label></div>}
+    <label className="mt-4 flex cursor-pointer items-start gap-3 font-black leading-relaxed"><input type="checkbox" checked={factorsConfirmed} onChange={(event) => onFactorsConfirmed(event.target.checked)} className="mt-1 size-5 shrink-0 accent-[#1d6e59]" />I confirmed the patient, age and weight, allergy/reaction history, current prescription/OTC/herbal medicines, pregnancy and breastfeeding status, and kidney/liver status.</label>
+  </section>;
+}
+
 function Warning({ warning, onRead, onAcknowledge, busy }) {
-  return <div role="alert" className="mt-4 rounded-[14px] bg-[#fff2c7] p-5 text-[#6d5510]"><div className="flex gap-3"><AlertTriangle className="shrink-0" /><div><strong className="block text-lg">Limited medication-history reference found</strong><p className="mt-2 font-bold leading-relaxed">{warning}</p></div></div><button type="button" onClick={onRead} className="mt-4 flex min-h-12 items-center gap-2 rounded-[12px] bg-white px-4 font-black"><Volume2 />Read warning aloud</button><p className="mt-4 text-sm font-bold">This small static list is not a complete interaction, allergy, contraindication, pregnancy, kidney, liver, or dose check. Use your normal clinical references. An override is recorded only after you confirm below.</p>{onAcknowledge && <button type="button" onClick={onAcknowledge} disabled={busy} className="mt-4 min-h-14 w-full rounded-[12px] bg-[#8b311f] px-5 font-black text-white disabled:opacity-50">{busy ? "Saving…" : "I have considered this — prescribe anyway"}</button>}</div>;
+  return <div role="alert" className="mt-4 rounded-[14px] bg-[#fff2c7] p-5 text-[#6d5510]"><div className="flex gap-3"><AlertTriangle className="shrink-0" /><div><strong className="block text-lg">Limited medication-history reference found</strong><p className="mt-2 font-bold leading-relaxed">{warning}</p></div></div><button type="button" onClick={onRead} className="mt-4 flex min-h-12 items-center gap-2 rounded-[12px] bg-white px-4 font-black"><Volume2 />Read warning aloud</button><p className="mt-4 text-sm font-bold">The interaction matcher is a small static reference, not a complete interaction or dose check. Use an authoritative drug reference. An override is recorded only after you confirm below.</p>{onAcknowledge && <button type="button" onClick={onAcknowledge} disabled={busy} className="mt-4 min-h-14 w-full rounded-[12px] bg-[#8b311f] px-5 font-black text-white disabled:opacity-50">{busy ? "Saving…" : "I have considered this — prescribe anyway"}</button>}</div>;
 }

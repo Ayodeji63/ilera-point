@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commitInterviewTurn, createInterviewSession, createTurn, rollbackLastTurn, updateSessionRecord } from "./session";
+import { commitInterviewTurn, createInterviewSession, createTurn, rollbackLastTurn, updateSessionClinicalProfile, updateSessionRecord } from "./session";
 
 describe("interview session", () => {
   it("stores full turn history and restores the exact pre-turn record", () => {
@@ -43,5 +43,16 @@ describe("interview session", () => {
 
     expect(committed.record.vitals).toEqual(initial.record.vitals);
     expect(committed.record.vitals).not.toBe(initial.record.vitals);
+  });
+
+  it("starts with confirmed medicines and preserves the visit-specific profile", () => {
+    const profile = { medication_status: "current", current_medications: "metformin 500 mg", age_value: 52 };
+    const session = createInterviewSession("Question", profile);
+    expect(session.record.medication_history).toBe("metformin 500 mg");
+    expect(session.record.still_missing).not.toContain("medication history");
+    expect(session.record.patient_profile).toEqual(profile);
+
+    const revised = updateSessionClinicalProfile(session, { ...profile, current_medications: "metformin and lisinopril" });
+    expect(revised.record.medication_history).toBe("metformin and lisinopril");
   });
 });

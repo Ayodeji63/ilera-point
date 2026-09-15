@@ -47,6 +47,11 @@ describe("interview completion policy", () => {
       .toMatch(/medicine/i);
   });
 
+  it("does not re-open medication history already confirmed before the interview", () => {
+    expect(reconcileStillMissing({ associated_symptoms: [], medication_history: "None reported", still_missing: ["medication history", "onset"] }, []))
+      .toEqual(["onset"]);
+  });
+
   it("uses a topic-safe fallback when a generated question cannot be classified", () => {
     expect(selectNextQuestion("Can you tell me a little more?", [], ["associated symptoms"], "en"))
       .toMatch(/other symptoms|what else/i);
