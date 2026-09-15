@@ -179,6 +179,38 @@ class CaptureSequenceTests(unittest.TestCase):
         self.assertEqual(result["temperature_c"], 36.5)
         self.assertTrue(result["temperature_calibrated"])
 
+    def test_warm_sensor_enclosure_does_not_reject_valid_forehead_surface(self):
+        readings = [
+            {"object_c": object_c, "ambient_c": ambient_c, "timestamp": "now"}
+            for object_c, ambient_c in (
+                (32.6, 35.3),
+                (32.8, 35.3),
+                (32.9, 35.4),
+                (33.0, 35.4),
+                (32.9, 35.4),
+                (32.8, 35.3),
+            )
+        ]
+
+        result, error = temperature_result(readings)
+
+        self.assertIsNone(error)
+        self.assertEqual(result["temperature_surface_c"], 32.8)
+        self.assertEqual(result["ambient_temperature_c"], 35.3)
+        self.assertEqual(result["temperature_confidence"], "low")
+        self.assertIn("sensor enclosure temperature", result["ambient_warning"])
+
+    def test_implausibly_low_surface_still_fails_skin_detection(self):
+        readings = [
+            {"object_c": value, "ambient_c": 24.0, "timestamp": "now"}
+            for value in (24.8, 24.9, 25.0, 24.9, 24.8, 25.0)
+        ]
+
+        result, error = temperature_result(readings)
+
+        self.assertIsNone(result)
+        self.assertIn("not aimed closely enough", error)
+
     def test_temperature_capture_logs_each_failure_and_summary(self):
         hardware = FakeFlakyTemperature()
         store = CaptureStore(hardware)

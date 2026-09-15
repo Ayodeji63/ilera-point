@@ -101,6 +101,11 @@ def evaluate_temperature(readings: list[dict]) -> tuple[dict | None, str | None,
         "ambient_c_min": round(min(ambient_values), 2) if ambient_values else None,
         "ambient_c_median": round(statistics.median(ambient_values), 2) if ambient_values else None,
         "ambient_c_max": round(max(ambient_values), 2) if ambient_values else None,
+        "surface_minus_ambient_c": (
+            round(statistics.median(object_values) - statistics.median(ambient_values), 2)
+            if object_values and ambient_values
+            else None
+        ),
     }
 
     if len(readings) < 3:
@@ -121,7 +126,11 @@ def evaluate_temperature(readings: list[dict]) -> tuple[dict | None, str | None,
 
     surface = round(statistics.median(object_values), 1)
     ambient = round(statistics.median(ambient_values), 1)
-    if not 27 <= surface <= 40 or surface < ambient + 0.5:
+    # The ambient channel is the MLX90614 sensor/package temperature, not a
+    # reliable skin-presence reference. It can read above forehead surface in
+    # a warm enclosure. Validate skin from the surface burst itself and use
+    # ambient only to lower confidence below.
+    if not 27 <= surface <= 40:
         return (
             None,
             "The sensor was not aimed closely enough at skin. Face it directly, 2-3 cm from your forehead, and retry.",
@@ -136,6 +145,13 @@ def evaluate_temperature(readings: list[dict]) -> tuple[dict | None, str | None,
             corrected = round(candidate, 1)
 
     ambient_ok = AMBIENT_MIN_C <= ambient <= AMBIENT_MAX_C
+    ambient_warning = None
+    if not ambient_ok:
+        ambient_warning = (
+            f"The sensor enclosure temperature was {ambient:.1f}°C, outside the "
+            f"supported {AMBIENT_MIN_C:.0f}-{AMBIENT_MAX_C:.0f}°C range. "
+            "The surface reading was saved with low confidence; improve ventilation and verify it clinically."
+        )
     return (
         {
             "temperature_surface_c": surface,
@@ -143,7 +159,7 @@ def evaluate_temperature(readings: list[dict]) -> tuple[dict | None, str | None,
             "temperature_c": corrected,
             "temperature_calibrated": corrected is not None,
             "temperature_confidence": "good" if ambient_ok else "low",
-            "ambient_warning": None if ambient_ok else "Room conditions may reduce temperature accuracy.",
+            "ambient_warning": ambient_warning,
             "captured_at": utc_timestamp(),
         },
         None,

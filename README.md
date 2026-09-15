@@ -234,6 +234,14 @@ VITALS_SPO2_CALIBRATION_B=<fitted-B>
 
 Then run `sudo systemctl restart ilerapoint-vitals`. Without those values, the kiosk deliberately labels the MLX90614 result as a surface reading and withholds SpO₂ instead of guessing.
 
+The MLX90614 ambient channel reflects the sensor/package temperature and can
+run hot inside the kiosk enclosure. `VITALS_AMBIENT_MIN_C` and
+`VITALS_AMBIENT_MAX_C` therefore control the confidence warning only; they do
+not determine whether a forehead is present. A stable 27–40 °C surface median
+is retained. An out-of-range ambient value marks it low confidence for clinical
+verification. Improve enclosure ventilation if idle ambient readings remain
+above the configured maximum.
+
 Open `https://ilera-point.vercel.app` once in a normal Chromium window and choose **Allow** when Chromium asks for Local Network Access, microphone, and camera. Those choices persist in that Chromium profile. Then launch kiosk mode with the same user/profile:
 
 ```bash
