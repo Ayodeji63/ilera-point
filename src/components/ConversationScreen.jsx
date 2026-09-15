@@ -1,7 +1,7 @@
 import { AlertCircle, Keyboard, Mic, RotateCcw, Send } from "lucide-react";
 import BrandHeader from "./BrandHeader";
 
-export default function ConversationScreen({ question, turns, turn, status, error, typedAnswer, onTypedChange, onRecord, onSubmitTyped, onRedo, onRetrySpeech, onSkipSpeech, onCancelTurn }) {
+export default function ConversationScreen({ language = "en", question, turns, turn, status, error, typedAnswer, onTypedChange, onRecord, onSubmitTyped, onRedo, onRetrySpeech, onSkipSpeech, onCancelTurn }) {
   const busy = status === "processing" || status === "transcribing";
   const listening = status === "waiting-for-speech" || status === "recording" || status === "finishing-recording";
   const recording = status === "recording";
@@ -18,6 +18,7 @@ export default function ConversationScreen({ question, turns, turn, status, erro
             </div>
             <h1 className="mt-8 max-w-4xl overflow-wrap-anywhere text-balance text-[clamp(2.15rem,5vw,4.8rem)] font-black leading-[1.02] tracking-[-.04em] sm:mt-12">{question}</h1>
             <p className="mt-5 text-lg font-semibold text-[#b8d5cc]">Speak in the language that feels natural to you.</p>
+            {language !== "en" && <p className="mt-4 max-w-3xl rounded-[14px] bg-white/10 p-4 font-bold leading-relaxed text-[#dcebe6]">Voice recognition for this language is still being evaluated. Check every displayed symptom, medicine, number and “no”.</p>}
           </div>
           <div className="mt-10 flex flex-col items-center">
             <div className={`relative grid h-32 w-32 place-items-center rounded-full ${recording ? "recording-ring bg-[#ef755f] text-white" : listening ? "bg-[#f2d533] text-[#103f33]" : "bg-[#d9dfd8] text-[#547068]"}`} aria-hidden="true"><Mic size={48} strokeWidth={2.5} /></div>
@@ -35,8 +36,8 @@ export default function ConversationScreen({ question, turns, turn, status, erro
           {turns.length > 0 && <button type="button" onClick={onRedo} disabled={busy || listening} className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-[14px] bg-[#e7f1ed] px-4 font-black text-[#155944] disabled:opacity-40"><RotateCcw size={20} />Redo my last answer</button>}
           {error && <div className="my-4 rounded-[14px] bg-[#fff0e8] p-4 font-bold text-[#8b311f]" role="alert"><div className="flex gap-3"><AlertCircle className="shrink-0" /><span>{error}</span></div>{error.startsWith("Question audio unavailable:")&&<button type="button" onClick={onRetrySpeech} disabled={speechActive} className="mt-3 min-h-12 w-full rounded-[12px] bg-white px-4 font-black text-[#8b311f] disabled:opacity-50">Try question audio again</button>}</div>}
           <form onSubmit={onSubmitTyped} className="mt-5 border-t border-[#dfe6e2] pt-5">
-            <label className="flex items-center gap-2 text-sm font-black uppercase tracking-[.1em] text-[#527269]"><Keyboard size={18} /> Or type your answer</label>
-            <div className="mt-3 flex gap-2"><textarea rows="2" maxLength="1000" value={typedAnswer} onChange={(event) => onTypedChange(event.target.value)} placeholder="Type here…" className="min-h-16 min-w-0 flex-1 resize-none rounded-[14px] bg-[#f1f3ee] px-4 py-3 text-base font-semibold text-[#103f33] placeholder:text-[#7f908b]" /><button disabled={!typedAnswer.trim() || busy || listening} className="grid min-h-16 w-16 shrink-0 place-items-center rounded-[14px] bg-[#103f33] text-white disabled:opacity-40" aria-label="Send typed answer"><Send /></button></div>
+            <label htmlFor="typed-answer" className="flex items-center gap-2 text-sm font-black uppercase tracking-[.1em] text-[#527269]"><Keyboard size={18} /> Or type your answer</label>
+            <div className="mt-3 flex gap-2"><textarea id="typed-answer" rows="2" maxLength="1000" value={typedAnswer} onChange={(event) => onTypedChange(event.target.value)} placeholder="Type here…" className="min-h-16 min-w-0 flex-1 resize-none rounded-[14px] bg-[#f1f3ee] px-4 py-3 text-base font-semibold text-[#103f33] placeholder:text-[#7f908b]" /><button disabled={!typedAnswer.trim() || busy || listening} className="grid min-h-16 w-16 shrink-0 place-items-center rounded-[14px] bg-[#103f33] text-white disabled:opacity-40" aria-label="Send typed answer"><Send /></button></div>
           </form>
         </aside>
       </div>

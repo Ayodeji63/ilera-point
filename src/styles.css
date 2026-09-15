@@ -79,6 +79,12 @@ button, a, select, textarea { -webkit-tap-highlight-color: transparent; }
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
 }
 
+@media (forced-colors: active) {
+  :focus-visible { outline-color: Highlight; }
+  button, input, select, textarea { border: 1px solid ButtonText; }
+  .recording-ring::before, .recording-ring::after { border-color: Highlight; }
+}
+
 @media (max-width: 640px) {
   .welcome-content { gap: 1.25rem; padding-top: 0; padding-bottom: 1rem; }
   .welcome-copy h1 { font-size: 2.75rem; line-height: .94; }

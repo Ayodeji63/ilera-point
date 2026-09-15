@@ -1,6 +1,28 @@
-# Clinical code-switching ASR benchmark
+# Clinical code-switching ASR benchmarks
 
-This benchmark measures whether an ASR system preserves the parts of a dictated prescription that can cause patient harm when mistranscribed. It is an evaluation tool, not a source of prescriptions or clinical recommendations.
+There are two complementary tracks:
+
+- The existing `manifest.csv` corpus contains 100 recordings: 25 Yorùbá-English, 25 Igbo-English, 25 Hausa-English, and 25 monolingual French controls. It measures general clinical code-switch recognition, segment loss, language-switch preservation, and hallucination.
+- `clinical-dictations.json` is the focused prescription-safety extension. It measures whether drug names, doses, and abbreviations survive transcription. The existing symptom corpus cannot answer that question because it does not contain a balanced set of dictated prescriptions and doses.
+
+Both are evaluation tools, not sources of prescriptions or clinical recommendations.
+
+Live patient consultations and clinician prescription requests are never added to these datasets automatically. Benchmark audio must be collected under a separate approved protocol, contain no patient identifiers or real patient histories, and carry documented participant consent, reference provenance, provider/model configuration, and retention dates.
+
+## Existing 100-clip baseline
+
+The audio is stored in the repository's git-ignored root `audio/` directory. Existing provider outputs are under `hyps/`. Audit the recording/reference alignment and regenerate the statistical report with:
+
+```bash
+pnpm benchmark:codeswitch:audit
+pnpm benchmark:codeswitch
+```
+
+The default command includes only the Sahara and Gemini hypothesis files whose adapters and rerun paths exist in this repository. `hyps/whisper_riva.csv` has incomplete provider/run provenance: its filename does **not** prove NVIDIA Riva produced it. It is excluded from default comparisons. `pnpm benchmark:codeswitch:include-unverified` exists only to reproduce the legacy exploratory table and labels that series `unverified_whisper_riva`.
+
+The report is written to `benchmarks/results/codeswitch-baseline/report.md`, with per-utterance scores, slices, bootstrap confidence intervals, and paired significance tests alongside it. `run_asr.py` resumes provider output files without re-running successful rows. Its Gemini adapter accepts the same `GEMINI_API_KEY` / `GEMINI_API_KEYS` pool as the application.
+
+## Prescription-safety extension
 
 ## Pilot recording protocol
 

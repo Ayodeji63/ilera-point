@@ -1,37 +1,36 @@
-# Responsible AI note
+# Responsible AI and clinical safety
 
-## Scope
+IleraPoint is a clinician-support intake system. It structures patient-reported information and creates reviewable drafts; it does not diagnose, recommend treatment, autonomously prescribe, or replace a clinician. The detailed implementation and residual-risk report is in [`docs/ETHICS_PRIVACY_REPORT.md`](docs/ETHICS_PRIVACY_REPORT.md).
 
-IleraPoint structures patient-reported intake information. It does not diagnose illness, recommend medicine, or replace a clinician. Emergency escalation is a deterministic application rule and does not depend on Gemini classifying urgency.
+## Human authority
 
-Consultation video is never sent to Gemini or any other AI model. It exists only for a human doctor's visual assessment after separate, explicit patient consent. Patient record access uses name or phone only; the kiosk performs no biometric identification.
+- Patients see and can correct the transcript and structured summary before handoff.
+- Speech-derived prescriptions are drafts. A clinician must review every field and explicitly confirm before a database write.
+- The formulary and medication-history checks are deterministic, limited reference checks. They are not a complete interaction, allergy, contraindication, pregnancy, renal, hepatic, or dosing system.
+- Vitals are measurements for clinician review, not diagnoses. Uncalibrated SpO₂ and corrected body temperature are withheld.
 
-## Language performance
+## Known safety limitation
 
-The kiosk supports English, Yorùbá-English, Nigerian Pidgin-English, Hausa-English, and Igbo-English speech. Performance can vary by language, accent, recording quality, background noise, microphone distance, and the amount of code-switching in an utterance.
+Emergency detection remains a small exact-match deterministic rule at the user's explicit direction. It is not a comprehensive triage screen and may miss synonyms, mistranscriptions, code-switched descriptions, paediatric presentations, pregnancy emergencies, self-harm, and other urgent conditions. It must not be described as an emergency guarantee.
 
-Hausa is sent to Sahara using the documented `ha` language code. The server rejects unknown language codes rather than silently defaulting to English. This removes a configuration path that could disproportionately degrade one language.
+## Privacy controls
 
-The project includes a matched-clip Hausa diagnostic harness:
+- No face, palm, or other biometric identity processing is present.
+- Consent separately describes required voice transcription, optional continuous video, and optional future de-identified research consideration. The notice version and choices are stored.
+- Consultation videos are private, delivered to authorised clinicians through short-lived signed URLs, and expire from storage under the configured retention policy.
+- Patient result capabilities are random, hashed at rest, expire after four hours, and are consumed after successful collection.
+- Patient lookup requires a complete normalized phone number, is rate-limited, and masks phone numbers in results.
+- Clinical access and safety-relevant actions create append-only, content-minimized audit events.
+- Live clinical dictation is not copied into `benchmark_samples`. Evaluation datasets must be imported separately from consented, de-identified recordings.
 
-```bash
-npm run benchmark:hausa -- ./path/to/hausa-clip.webm "expected reference transcript"
-```
+## Language and inclusion
 
-For the same audio file, the harness compares:
+English is marked supported. Yorùbá-English, Pidgin-English, Hausa-English, and Igbo-English operate in supervised mode because current evidence does not justify unattended acceptance. The UI tells users and clinicians to verify symptoms, medicines, numbers, units, abbreviations, and negations.
 
-1. Telehealth post-processing.
-2. General post-processing.
-3. Telehealth transcription with LLM corrections disabled.
+The interface provides visible transcripts, typed alternatives, large touch targets, strong focus indicators, live status text, reduced-motion behavior, and non-colour status cues. Native speakers and disability-inclusive participants must validate translated notices and the Raspberry Pi kiosk before clinical deployment.
 
-When a reference transcript is provided, the harness reports word error rate for each mode. Test clips should be matched across languages for noise, code-switch density, microphone distance, and accent familiarity before drawing comparative conclusions.
+## Evidence and deployment gate
 
-No matched Hausa evaluation audio was supplied with V2, so this repository does not claim that the quality difference has been resolved empirically. If matched testing continues to show materially weaker Hausa performance, that result should remain documented and visible rather than being hidden or removing Hausa support.
+No provider or language is promoted based on an untraceable result. A benchmark result is publishable only when its audio set, reference source, provider/model, configuration, run date, success/failure denominator, and raw provider output are reproducible. The legacy `whisper_riva` CSV is retained as unverified evidence and is excluded from default claims until its provenance is supplied.
 
-## Correction and human review
-
-- Gemini receives the full visit conversation so later corrections can replace earlier extracted facts.
-- “Redo my last answer” restores the exact record snapshot from before the most recent turn without relying on AI interpretation.
-- The patient can edit every patient-facing record field before clinician handoff.
-- A clinician must review and approve or flag the resulting record.
-- V3 persists corrected consultations and prescriptions in Supabase for authenticated clinician review; consented video remains in private Storage.
+Before clinical use, the deploying institution must complete a DPIA, approve retention periods, execute processor and cross-border-transfer arrangements, validate translations, perform clinical safety review, test accessibility on the actual kiosk, and define an incident owner and escalation channel.

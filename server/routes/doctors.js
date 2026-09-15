@@ -1,6 +1,8 @@
 import { Router } from "express";
 import { getSupabaseAdmin, requireAdmin, requireAuthenticated } from "../supabaseAdmin.js";
 import { applicationRecord, doctorAccessDecision, validateApplication } from "../doctorAccess.js";
+import { recordAuditEvent } from "../auditEvents.js";
+import { safeRequestMetadata } from "../privacy.js";
 
 export const doctorsRouter = Router();
 
@@ -33,11 +35,12 @@ doctorsRouter.post("/apply", requireAuthenticated, async (req, res) => {
       .select("id,name,email,status")
       .single();
     if (error) throw error;
+    await recordAuditEvent({ action: "clinician.application_submitted", actorType: "clinician", actorId: data.id, metadata: safeRequestMetadata(req) });
     res.status(201).json({ application: data });
   } catch (error) { res.status(502).json({ error: error.message }); }
 });
 
-doctorsRouter.get("/pending", requireAdmin, async (_req, res) => {
+doctorsRouter.get("/pending", requireAdmin, async (req, res) => {
   try {
     const { data, error } = await getSupabaseAdmin()
       .from("doctors")
@@ -45,6 +48,7 @@ doctorsRouter.get("/pending", requireAdmin, async (_req, res) => {
       .eq("status", "pending")
       .order("created_at", { ascending: true });
     if (error) throw error;
+    await recordAuditEvent({ action: "admin.applications_viewed", actorType: "admin", actorId: req.doctor.id, metadata: { ...safeRequestMetadata(req), result_count: data.length } });
     res.json({ applications: data });
   } catch (error) { res.status(502).json({ error: error.message }); }
 });
@@ -66,6 +70,7 @@ doctorsRouter.patch("/:id/status", requireAdmin, async (req, res) => {
       .maybeSingle();
     if (error) throw error;
     if (!data) return res.status(404).json({ error: "No doctor application with that id." });
+    await recordAuditEvent({ action: `admin.application_${status}`, actorType: "admin", actorId: req.doctor.id, metadata: { ...safeRequestMetadata(req), subject_doctor_id: data.id } });
     res.json({ doctor: data });
   } catch (error) { res.status(502).json({ error: error.message }); }
 });

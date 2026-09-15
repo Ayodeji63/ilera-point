@@ -56,7 +56,7 @@ export default function PatientAccessScreen({ onPatient, onBack }) {
             <h1 className="mt-10 text-balance text-[clamp(2.7rem,6vw,5.2rem)] font-black leading-[.95] tracking-[-.04em]">Let’s find your patient record.</h1>
             <p className="mt-6 max-w-xl text-xl font-semibold leading-relaxed text-[#b8d5cc]">Returning patients can search their existing record. New patients can create one before the interview.</p>
           </div>
-          <p className="mt-10 rounded-[14px] bg-white/10 p-4 font-bold text-[#dcebe6]">Your name and phone number are used only to connect this visit to your care record.</p>
+          <p className="mt-10 rounded-[14px] bg-white/10 p-4 font-bold text-[#dcebe6]">Your details are used to connect this visit to your clinical record. Searches are limited, and phone numbers are masked on results.</p>
         </div>
 
         <div className="min-h-[560px] rounded-[16px] bg-white p-6 shadow-[0_16px_40px_rgba(16,63,51,.1)] md:p-9">
@@ -69,10 +69,10 @@ export default function PatientAccessScreen({ onPatient, onBack }) {
             <div className="mt-8">
               <Search className="text-[#1d6e59]" size={34} />
               <h2 className="mt-3 text-3xl font-black tracking-[-.03em] text-[#103f33]">Find your existing record</h2>
-              <p className="mt-2 font-semibold leading-relaxed text-[#527269]">Enter either your name or phone number.</p>
+              <p id="lookup-help" className="mt-2 font-semibold leading-relaxed text-[#527269]">Enter the complete phone number on your record. Add your full name if other people share that number.</p>
               <form onSubmit={lookup} className="mt-6 space-y-4">
-                <label className="block font-black text-[#103f33]">Full name<input autoFocus value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="mt-2 min-h-14 w-full rounded-[14px] bg-[#f1f3ee] px-4 font-semibold" /></label>
-                <label className="block font-black text-[#103f33]">Phone number<input inputMode="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="mt-2 min-h-14 w-full rounded-[14px] bg-[#f1f3ee] px-4 font-semibold" /></label>
+                <label className="block font-black text-[#103f33]">Full name <span className="font-semibold text-[#527269]">(only if needed)</span><input value={form.name} maxLength="120" autoComplete="name" onChange={(event) => setForm({ ...form, name: event.target.value })} className="mt-2 min-h-14 w-full rounded-[14px] bg-[#f1f3ee] px-4 font-semibold" /></label>
+                <label className="block font-black text-[#103f33]">Complete phone number<input autoFocus required inputMode="tel" autoComplete="tel" minLength="10" maxLength="21" aria-describedby="lookup-help" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="mt-2 min-h-14 w-full rounded-[14px] bg-[#f1f3ee] px-4 font-semibold" /></label>
                 <button disabled={busy} className="flex min-h-14 w-full items-center justify-center gap-2 rounded-[14px] bg-[#103f33] px-5 font-black text-white disabled:opacity-50">{busy ? <LoaderCircle className="animate-spin" /> : <Keyboard />}Search patient records</button>
               </form>
               {searched && results.length === 0 && <div className="mt-5 rounded-[14px] bg-[#fff2c7] p-4 text-[#6d5510]"><p className="font-black">No matching patient record was found.</p><button type="button" onClick={() => chooseJourney("new")} className="mt-3 min-h-12 w-full rounded-[12px] bg-[#f2d533] px-4 font-black text-[#103f33]"><UserPlus className="mr-2 inline" />Create a new patient record</button></div>}
@@ -84,8 +84,8 @@ export default function PatientAccessScreen({ onPatient, onBack }) {
               <h2 className="mt-3 text-3xl font-black tracking-[-.03em] text-[#103f33]">Create your patient record</h2>
               <p className="mt-2 font-semibold leading-relaxed text-[#527269]">Enter your details, then continue to recording consent.</p>
               <form onSubmit={register} className="mt-6 space-y-4">
-                <label className="block font-black text-[#103f33]">Full name<input autoFocus required minLength="2" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="mt-2 min-h-14 w-full rounded-[14px] bg-[#f1f3ee] px-4 font-semibold" /></label>
-                <label className="block font-black text-[#103f33]">Phone number <span className="font-semibold text-[#527269]">(optional)</span><input inputMode="tel" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="mt-2 min-h-14 w-full rounded-[14px] bg-[#f1f3ee] px-4 font-semibold" /></label>
+                <label className="block font-black text-[#103f33]">Full name<input autoFocus required minLength="2" maxLength="120" autoComplete="name" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} className="mt-2 min-h-14 w-full rounded-[14px] bg-[#f1f3ee] px-4 font-semibold" /></label>
+                <label className="block font-black text-[#103f33]">Phone number<input required inputMode="tel" autoComplete="tel" minLength="10" maxLength="21" value={form.phone} onChange={(event) => setForm({ ...form, phone: event.target.value })} className="mt-2 min-h-14 w-full rounded-[14px] bg-[#f1f3ee] px-4 font-semibold" /></label>
                 <button disabled={busy} className="flex min-h-16 w-full items-center justify-center gap-3 rounded-[14px] bg-[#f2d533] px-5 text-lg font-black text-[#103f33] disabled:opacity-50">{busy ? <LoaderCircle className="animate-spin" /> : <UserPlus />}Create record and continue</button>
               </form>
             </div>

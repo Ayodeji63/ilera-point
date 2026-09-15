@@ -2,6 +2,21 @@
 
 A voice-led, code-switching patient intake and triage kiosk for primary-care settings. V3 adds patient record lookup and registration, consented consultation recording, Supabase persistence, an authenticated doctor review and prescribing workspace, and prescription collection at the kiosk.
 
+## Ethics and privacy
+
+IleraPoint is clinician-support software, not an autonomous diagnosis, triage, or prescribing system. Patients review the transcript and summary; speech-derived prescriptions remain drafts until a clinician explicitly confirms them. No face, palm, or other biometric identification is used.
+
+- Consent separately explains short voice processing, optional continuous video, and optional future de-identified research consideration. Research is off by default and never affects care.
+- Live clinical dictation is not copied into the benchmark dataset. Content-minimized AI audit events record provider/model/prompt provenance without duplicating the transcript.
+- Returning-patient lookup requires a complete phone number, is rate-limited, and masks results.
+- Patient result tokens are hashed at rest, expire after four hours, and are consumed after collection.
+- Videos, audit evidence, approved benchmark data, and clinical records have configurable retention deadlines and a dry-run-first cleanup command.
+- Non-English voice modes are labelled supervised until representative clinical evaluation meets an approved threshold.
+- The medication matcher is a limited reference, not a complete interaction or contraindication check.
+- The existing deterministic emergency rule is intentionally unchanged and is not a comprehensive emergency screen.
+
+Read the full implementation, data-flow, retention, inclusion, governance, residual-risk, DPIA, and incident-response report in [`docs/ETHICS_PRIVACY_REPORT.md`](docs/ETHICS_PRIVACY_REPORT.md). The shorter system statement is in [`RESPONSIBLE_AI.md`](RESPONSIBLE_AI.md).
+
 ## Run locally
 
 ```bash
@@ -31,10 +46,10 @@ Open `http://localhost:5173/yoruba-image-to-speech` directly; this public utilit
 ## V3 patient flow
 
 - `Tap to begin` opens patient record access with separate returning- and new-patient routes.
-- Returning patients search Supabase records by name or phone and explicitly choose their matching record.
-- New patients enter their name and optional phone number, create a record, and continue directly to recording consent.
+- Returning patients search by their complete normalized phone number, optionally disambiguated by exact full name; results mask the phone number and searches are throttled.
+- New patients enter their name and phone number, create a record, and continue directly to recording consent.
 - No photograph or biometric information is captured, processed, transmitted, or stored.
-- A separate consent screen explains full-session video, private clinician access, and the right to continue without video.
+- A versioned consent screen explains required voice-provider processing, optional full-session video, optional de-identified research consideration, retention, correction, and withdrawal.
 - After consent, pulse/oxygen and temperature use separate screens and separate Start buttons. No sensor reading begins on page load. Pulse captures a timestamped 10-second MAX30102 window and may retry automatically once; continuing then opens the independently started MLX90614 forehead screen.
 - Yoruba-English and Igbo-English patients receive localized visible controls plus automatic Sahara positioning guidance, with a button to hear the instructions again. Either sensor may be retried or skipped without losing the other result.
 - `structured_record.vitals` stores available calibrated values, signal confidence, and the raw calibration fields. SpO₂ is shown only when reference-derived ratio-of-ratios coefficients are configured. MLX90614 surface and ambient readings are stored separately; a corrected body-temperature value is shown only after fitted calibration coefficients are configured.
@@ -44,7 +59,7 @@ Open `http://localhost:5173/yoruba-image-to-speech` directly; this public utilit
 
 ### Collecting the prescription
 
-The patient stays at the kiosk after submitting. Saving a consultation issues a single-use capability token that the kiosk holds in memory; it polls `GET /api/consultations/:id/result?token=…` every five seconds and shows nothing until the clinician has finished. When a prescription lands, the medicine, dose, and instructions appear in large type and are read aloud in the patient's language through Sahara.
+The patient stays at the kiosk after submitting. Saving a consultation issues a single-use capability token that the kiosk holds in memory while the database stores only its hash. It expires after four hours and is consumed after collection. The kiosk polls `GET /api/consultations/:id/result?token=…` every five seconds and shows nothing until the clinician has finished. When a prescription lands, the medicine, dose, and instructions appear in large type and are read aloud in the patient's language through Sahara.
 
 The token is never listed and is discarded when the kiosk is cleared, so nothing about a patient stays readable on a shared screen after they walk away. A wrong or missing token is answered exactly like a missing consultation, so the endpoint never confirms an id exists. Drug names and doses are the clinician's own words and are spoken as written — only the surrounding sentence is translated, so expect imperfect pronunciation of English drug names in Yoruba, Hausa, and Igbo.
 
@@ -106,7 +121,9 @@ On the dedicated prescription route, an approved clinician can choose English, Y
 4. The unchanged deterministic medication-history check runs before the draft is returned.
 5. The clinician reviews every field and explicitly confirms. Interaction warnings are shown and read with Sahara; an acknowledged override remains possible and is audited.
 
-Dictated prescriptions store `dictated`, `raw_transcript`, and `parse_confidence`. Every parse attempt is also written to the RLS-protected `benchmark_samples` table. Follow the consent and recording protocol in [`benchmarks/README.md`](benchmarks/README.md), add the fixed recordings named in [`benchmarks/clinical-dictations.json`](benchmarks/clinical-dictations.json), configure `SAHARA_API_KEY`, `OPENAI_API_KEY`, and either `GEMINI_API_KEY` or `GEMINI_API_KEYS`, then run `pnpm benchmark:asr`. The harness compares Sahara, OpenAI, and Gemini and reports success rate, p50/p95 latency, overall WER, drug and dose WER/exact accuracy, and abbreviation accuracy. Raw transcripts and sample-level errors are retained locally under the git-ignored `benchmarks/results/` directory.
+Dictated prescriptions store `dictated`, `raw_transcript`, `parse_confidence`, provider, model, and prompt version as clinical audit evidence. Live parse attempts are not benchmark samples. Follow the separate consent and recording protocol in [`benchmarks/README.md`](benchmarks/README.md), add the fixed recordings named in [`benchmarks/clinical-dictations.json`](benchmarks/clinical-dictations.json), configure provider keys, then run `pnpm benchmark:asr`. Raw transcripts and sample-level errors remain local under the git-ignored `benchmarks/results/` directory.
+
+The repository also includes the earlier 100-clip general clinical corpus in root `audio/` and `manifest.csv`. Run `pnpm benchmark:codeswitch:audit` to check reference/audio plausibility, then `pnpm benchmark:codeswitch` to score the complete Sahara, Gemini, and NVIDIA Riva hypotheses with bootstrap confidence intervals and per-language slices. This baseline measures general code-switch recognition; it is not a substitute for the focused prescription set because most clips contain no drug-and-dose pair.
 
 ### Access control
 
@@ -130,7 +147,7 @@ Self-service signup needs working email delivery: the project requires email con
 - `server/index.js`: Sahara STT with adaptive status polling, pooled streaming TTS with Sahara's synchronous endpoint as a provider-only recovery path, and one history-aware Gemini structured-output call per turn.
 - `server/yorubaOcr.js`: exact Yoruba text extraction from images using Gemini multimodal input.
 - `server/yorubaScript.js`: Yoruba orthography restoration, code-switched English preservation, and screenplay cast extraction.
-- `server/routes/patients.js`: patient registration and name/phone record lookup.
+- `server/routes/patients.js`: patient registration and throttled exact-phone record lookup.
 - `server/routes/consultations.js`: private Storage upload, consultation persistence, doctor queue/case reads, and signed video URLs.
 - `server/routes/prescriptions.js`: authenticated prescription writes and completion status.
 - `src/lib/media/sessionRecorder.js`: one media stream for per-turn audio clips, automatic speech/silence detection, and consented continuous recording.
@@ -139,11 +156,13 @@ Self-service signup needs working email delivery: the project requires email con
 - `server/routes/vitals.js`: thin `/api/vitals/*` proxy to the local bridge, keeping sensor ports and CORS out of the browser.
 - `src/components/VitalsScreen.jsx`: automatic capture instructions, live waveform feedback, result, retry, and non-blocking skip states.
 - `src/lib/safety/redFlags.js`: deterministic red-flag function, invoked after every interview turn.
-- Supabase holds patients, consultations, doctors, and prescriptions. Patient access uses name or phone only.
+- Supabase holds patients, consultations, consent, audit events, doctors, and prescriptions. Returning-patient access uses a complete normalized phone number and masked results.
 
 ## Supabase setup
 
-Run the migrations in order in the Supabase SQL editor or migration CLI: [`0001_ilera_v3.sql`](supabase/migrations/0001_ilera_v3.sql) creates the tables, [`0002_doctor_onboarding.sql`](supabase/migrations/0002_doctor_onboarding.sql) adds doctor approval columns, [`0003_patient_collection.sql`](supabase/migrations/0003_patient_collection.sql) adds the patient collection token, [`0004_task_shifting.sql`](supabase/migrations/0004_task_shifting.sql) adds clinician roles and case routing, [`0005_prescription_safety.sql`](supabase/migrations/0005_prescription_safety.sql) records interaction overrides, [`0006_escalation_alerts.sql`](supabase/migrations/0006_escalation_alerts.sql) creates the private alert-audio bucket, [`0007_remove_biometric_identity.sql`](supabase/migrations/0007_remove_biometric_identity.sql) removes legacy provider-reference columns from upgraded databases, [`0008_voice_calls.sql`](supabase/migrations/0008_voice_calls.sql) adds durable Africa's Talking call intents and retry state, and [`0009_prescription_dictation.sql`](supabase/migrations/0009_prescription_dictation.sql) adds dictated-prescription audit fields and benchmark samples. If a migration is missing at runtime the API says which file to run rather than failing opaquely. The migrations create the V3 tables, indexes, status constraints, RLS, and private WebM-only `consultation-videos` bucket with a 50 MB object limit. The Express server uses the service-role key; never place that key in a `VITE_` variable. The browser receives only the project URL and anon key for Supabase Auth.
+Run the migrations in order in the Supabase SQL editor or migration CLI. After `0001`–`0009`, apply [`0010_ethics_privacy.sql`](supabase/migrations/0010_ethics_privacy.sql) for consent records, hashed expiring patient tokens, retention fields, benchmark provenance, and append-only audit tables. It invalidates legacy plaintext result tokens. The Express server uses the service-role key; never place that key in a `VITE_` variable.
+
+Preview retention cleanup with `pnpm privacy:retention`; apply it from an authorised scheduled backend using `pnpm privacy:retention -- --apply`. Clinical-record deletion remains disabled unless the deploying clinic approves its records schedule and sets `RETENTION_DELETE_CLINICAL_RECORDS=1`.
 
 ## Raspberry Pi vitals bridge
 

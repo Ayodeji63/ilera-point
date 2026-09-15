@@ -20,6 +20,9 @@ vi.mock("../supabaseAdmin.js", () => ({
         insert: () => ({ select: () => ({ single: async () => ({ data: { id: "sample-1" }, error: null }) }) }),
         update: () => ({ eq: async () => ({ error: null }) }),
       };
+      if (table === "audit_events" || table === "ai_processing_events") return {
+        insert: async () => ({ error: null }),
+      };
       if (table === "prescriptions") return {
         insert: () => ({ select: () => ({ single: async () => ({ data: { id: "prescription-1" }, error: null }) }) }),
       };
@@ -45,16 +48,18 @@ describe("prescription dictation routes", () => {
     mocks.parse.mockResolvedValue({ drug: "Paracetamol", dosage: "500 mg", frequency: "TDS", duration: "5 days", instructions: "After food", confidence: 0.9 });
     const response = await fetch(`${origin}/api/prescriptions/parse`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ consultation_id: "case-1", transcript: "Paracetamol 500 mg TDS for 5 days after food", language_code: "en" }) });
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({ prescription: { drug: "Paracetamol", frequency: "TDS" }, sample_id: "sample-1" });
+    expect(await response.json()).toMatchObject({ prescription: { drug: "Paracetamol", frequency: "TDS" } });
+    expect(mocks.tables).not.toContain("benchmark_samples");
     expect(mocks.tables).not.toContain("prescriptions");
   });
 
-  it("refuses an unrecognised model guess and still logs the sample", async () => {
+  it("refuses an unrecognised model guess without copying clinical data into the benchmark dataset", async () => {
     mocks.parse.mockResolvedValue({ drug: "Paracetmol", dosage: "500 mg", frequency: "TDS", duration: "5 days", instructions: "After food", confidence: 0.4 });
     const response = await fetch(`${origin}/api/prescriptions/parse`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ consultation_id: "case-1", transcript: "Paracetmol 500 mg", language_code: "yo" }) });
     expect(response.status).toBe(422);
     expect(await response.json()).toMatchObject({ code: "parse_invalid", errors: [expect.objectContaining({ field: "drug" })] });
-    expect(mocks.tables.filter((table) => table === "benchmark_samples").length).toBeGreaterThanOrEqual(2);
+    expect(mocks.tables).not.toContain("benchmark_samples");
+    expect(mocks.tables).toContain("ai_processing_events");
     expect(mocks.tables).not.toContain("prescriptions");
   });
 

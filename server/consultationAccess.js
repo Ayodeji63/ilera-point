@@ -1,4 +1,5 @@
 import { randomBytes, timingSafeEqual } from "node:crypto";
+import { sha256 } from "./privacy.js";
 
 // The patient has no account. The kiosk is handed a capability token when the
 // consultation is saved, holds it in memory for as long as the patient stands
@@ -7,10 +8,15 @@ export function createPatientToken() {
   return randomBytes(32).toString("hex");
 }
 
-export function patientTokenMatches(stored, supplied) {
-  if (typeof stored !== "string" || typeof supplied !== "string") return false;
-  if (!stored || stored.length !== supplied.length) return false;
-  return timingSafeEqual(Buffer.from(stored), Buffer.from(supplied));
+export function hashPatientToken(token) {
+  return sha256(token);
+}
+
+export function patientTokenMatches(storedHash, supplied) {
+  if (typeof storedHash !== "string" || typeof supplied !== "string" || !supplied) return false;
+  const suppliedHash = hashPatientToken(supplied);
+  if (storedHash.length !== suppliedHash.length) return false;
+  return timingSafeEqual(Buffer.from(storedHash), Buffer.from(suppliedHash));
 }
 
 // A prescription is only ever shown once the clinician has finished with the

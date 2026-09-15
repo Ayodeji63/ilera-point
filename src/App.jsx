@@ -30,7 +30,7 @@ import {
 import { SessionRecorder } from "./lib/media/sessionRecorder";
 import { connectTurnTranscriber } from "./lib/media/pcmStream";
 import { transcribeTurn } from "./lib/media/transcribeTurn";
-import { getConsultationResult, saveConsultation } from "./lib/consultations";
+import { getConsultationResult, saveConsultation, withdrawOptionalConsent } from "./lib/consultations";
 import { getDoctorAccount } from "./lib/doctors";
 
 const FIRST_QUESTIONS = {
@@ -111,7 +111,7 @@ export default function App() {
   );
   const [language, setLanguage] = useState("en");
   const [patient, setPatient] = useState(null);
-  const [videoConsent, setVideoConsent] = useState(false);
+  const [consentChoice, setConsentChoice] = useState(null);
   const [pulseVitals, setPulseVitals] = useState(null);
   const [session, setSession] = useState(null);
   const [status, setStatus] = useState("idle");
@@ -123,6 +123,7 @@ export default function App() {
   const [doctorError, setDoctorError] = useState("");
   const [collection, setCollection] = useState(null);
   const [waitedTooLong, setWaitedTooLong] = useState(false);
+  const [privacyStatus, setPrivacyStatus] = useState("");
   const media = useRef(new SessionRecorder());
   const currentAudio = useRef(null);
   const audioContext = useRef(null);
@@ -167,6 +168,9 @@ export default function App() {
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [screen]);
+  useEffect(() => {
+    document.documentElement.lang = language;
+  }, [language]);
 
   useEffect(
     () => () => {
@@ -382,8 +386,8 @@ export default function App() {
     setStatus("starting-media");
     try {
       await unlockAudio();
-      await media.current.start(consent);
-      setVideoConsent(consent);
+      await media.current.start(consent.videoRecording);
+      setConsentChoice(consent);
       const question = FIRST_QUESTIONS[language];
       applySession(createInterviewSession(question));
       setTypedAnswer("");
@@ -423,7 +427,10 @@ export default function App() {
     turns: currentSession.turns,
     structured_record: currentSession.record,
     red_flag_status: safety,
-    video_consent: videoConsent,
+    video_consent: Boolean(consentChoice?.videoRecording),
+    audio_processing_consent: Boolean(consentChoice?.audioProcessing),
+    research_reuse_consent: Boolean(consentChoice?.researchReuse),
+    consent_notice_version: consentChoice?.noticeVersion,
   });
   const persist = async (currentSession, safety) => {
     if (saving.current) return null;
@@ -645,6 +652,7 @@ export default function App() {
     saving.current = false;
     history.pushState({}, "", "/");
     setPatient(null);
+    setConsentChoice(null);
     setPulseVitals(null);
     applySession(null);
     // The capability token dies with the visit: nothing about this patient stays
@@ -652,6 +660,7 @@ export default function App() {
     setConsultation(null);
     setCollection(null);
     setWaitedTooLong(false);
+    setPrivacyStatus("");
     spokenFor.current = null;
     setError("");
     setStatus("idle");
@@ -729,6 +738,7 @@ export default function App() {
     return (
       <VideoConsentScreen
         patient={patient}
+        language={language}
         busy={status === "starting-media"}
         error={error}
         onChoice={beginInterview}
@@ -763,6 +773,16 @@ export default function App() {
         waitedTooLong={waitedTooLong}
         speaking={status === "speaking" || status === "loading-speech"}
         onReadAloud={() => collection?.prescription && speak(prescriptionSpeech(collection.prescription, language))}
+        optionalConsentActive={Boolean(consentChoice?.videoRecording || consentChoice?.researchReuse)}
+        privacyStatus={privacyStatus}
+        onWithdrawOptionalConsent={async () => {
+          setPrivacyStatus("withdrawing");
+          try {
+            await withdrawOptionalConsent(consultation.id, consultation.patient_token);
+            setConsentChoice((current) => current ? { ...current, videoRecording: false, researchReuse: false } : current);
+            setPrivacyStatus("withdrawn");
+          } catch (failure) { setPrivacyStatus(failure.message); }
+        }}
         onReset={reset}
       />
     );
@@ -770,6 +790,7 @@ export default function App() {
     return (
       <>
         <ConversationScreen
+          language={language}
           question={session.current_question}
           turns={session.turns}
           turn={session.turn_count}
@@ -795,7 +816,7 @@ export default function App() {
             scheduleSpeech(rolledBack.current_question, true);
           }}
         />
-        {videoConsent && <RecordingIndicator />}
+        {consentChoice?.videoRecording && <RecordingIndicator />}
       </>
     );
   return (

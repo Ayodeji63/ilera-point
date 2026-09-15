@@ -1,10 +1,12 @@
 import { Router } from "express";
 import multer from "multer";
 import { getSupabaseAdmin, requireDoctor } from "../supabaseAdmin.js";
-import { collectionView, createPatientToken, patientTokenMatches } from "../consultationAccess.js";
+import { collectionView, createPatientToken, hashPatientToken, patientTokenMatches } from "../consultationAccess.js";
 import { missingColumnHint } from "../schemaHints.js";
 import { canSeeEveryTier, canWorkCase, routeConsultation, tierForRole } from "../careRouting.js";
 import { escalateInBackground } from "../redFlagEscalation.js";
+import { recordAuditEvent } from "../auditEvents.js";
+import { CONSENT_NOTICE_VERSION, expiresAfterDays, retentionDays, safeRequestMetadata } from "../privacy.js";
 
 export const consultationsRouter = Router();
 const videoUpload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
@@ -14,6 +16,9 @@ consultationsRouter.post("/", videoUpload.single("video"), async (req, res) => {
   try {
     const payload = JSON.parse(req.body.consultation || "{}");
     if (!payload.patient_id || !Array.isArray(payload.turns) || !payload.structured_record) return res.status(400).json({ error: "A complete consultation record is required." });
+    if (payload.consent_notice_version !== CONSENT_NOTICE_VERSION || payload.audio_processing_consent !== true) {
+      return res.status(400).json({ error: "Current microphone and data-processing consent is required before this consultation can be saved." });
+    }
     const supabase = getSupabaseAdmin();
     let videoPath = null;
     if (payload.video_consent && req.file) {
@@ -25,6 +30,7 @@ consultationsRouter.post("/", videoUpload.single("video"), async (req, res) => {
     // The kiosk keeps this token so the waiting patient can read their own
     // result without an account. It is returned once and never listed.
     const patientToken = createPatientToken();
+    const tokenExpiresAt = new Date(Date.now() + 4 * 60 * 60 * 1000).toISOString();
     // Routing is decided here, from the record, not by the browser: a modified
     // kiosk must not be able to route its own case away from a doctor.
     const routed = routeConsultation({ record: payload.structured_record, redFlagStatus: payload.red_flag_status });
@@ -32,7 +38,19 @@ consultationsRouter.post("/", videoUpload.single("video"), async (req, res) => {
       ...payload,
       video_url: videoPath,
       status: "pending",
-      patient_token: patientToken,
+      patient_token_hash: hashPatientToken(patientToken),
+      patient_token_expires_at: tokenExpiresAt,
+      consent_notice_version: CONSENT_NOTICE_VERSION,
+      audio_processing_consent: true,
+      research_reuse_consent: Boolean(payload.research_reuse_consent),
+      ai_provenance: {
+        interview_provider: "gemini",
+        interview_model: process.env.GEMINI_MODEL || "gemini-2.5-flash-lite",
+        interview_prompt_version: "intake-2026-09-15.v1",
+        speech_provider: "sahara",
+      },
+      retention_until: expiresAfterDays(retentionDays.clinical),
+      video_retention_until: videoPath ? expiresAfterDays(retentionDays.video) : null,
       assigned_tier: routed.tier,
       routing_reasons: routed.reasons,
     }).select("id,status,created_at").single();
@@ -40,6 +58,28 @@ consultationsRouter.post("/", videoUpload.single("video"), async (req, res) => {
       if (videoPath) await supabase.storage.from(BUCKET).remove([videoPath]);
       throw error;
     }
+    const { error: consentError } = await supabase.from("consent_records").insert({
+      consultation_id: data.id,
+      patient_id: payload.patient_id,
+      notice_version: CONSENT_NOTICE_VERSION,
+      language_code: payload.language_pair || "en",
+      audio_processing: true,
+      continuous_video: Boolean(payload.video_consent),
+      research_reuse: Boolean(payload.research_reuse_consent),
+      retention_until: expiresAfterDays(retentionDays.clinical),
+    });
+    if (consentError) {
+      await supabase.from("consultations").delete().eq("id", data.id);
+      if (videoPath) await supabase.storage.from(BUCKET).remove([videoPath]);
+      throw consentError;
+    }
+    await recordAuditEvent({
+      action: "consultation.created",
+      actorType: "patient",
+      consultationId: data.id,
+      patientId: payload.patient_id,
+      metadata: { ...safeRequestMetadata(req), video: Boolean(videoPath), consent_version: CONSENT_NOTICE_VERSION },
+    });
     // A red flag rings the on-call clinician with a spoken alert, in the same
     // Sahara voice the patient just heard. Started after the record is safely
     // stored, and never allowed to fail the save.
@@ -47,7 +87,7 @@ consultationsRouter.post("/", videoUpload.single("video"), async (req, res) => {
       escalateInBackground({ consultationId: data.id, triggers: payload.red_flag_status.triggers });
     }
     res.status(201).json({ consultation: { ...data, patient_token: patientToken } });
-  } catch (error) { res.status(502).json({ error: error.message }); }
+  } catch (error) { res.status(502).json({ error: missingColumnHint(error, "0010_ethics_privacy.sql") || error.message }); }
 });
 
 // The patient waits at the kiosk while the clinician reviews. This is the only
@@ -60,16 +100,52 @@ consultationsRouter.get("/:id/result", async (req, res) => {
     const supabase = getSupabaseAdmin();
     const { data, error } = await supabase
       .from("consultations")
-      .select("id,status,patient_token,prescriptions(drug,dosage,instructions,created_at)")
+      .select("id,status,patient_token_hash,patient_token_expires_at,patient_token_consumed_at,prescriptions(drug,dosage,instructions,created_at)")
       .eq("id", req.params.id)
       .maybeSingle();
     if (error) throw error;
     // A wrong token is answered exactly like a missing consultation, so the
     // endpoint never confirms that an id exists.
-    if (!data || !patientTokenMatches(data.patient_token, token)) return res.status(404).json({ error: "No consultation was found." });
-    res.json({ result: collectionView(data, data.prescriptions?.[0] || null) });
+    const expired = !data?.patient_token_expires_at || new Date(data.patient_token_expires_at).getTime() <= Date.now();
+    if (!data || expired || data.patient_token_consumed_at || !patientTokenMatches(data.patient_token_hash, token)) return res.status(404).json({ error: "No consultation was found." });
+    const result = collectionView(data, data.prescriptions?.[0] || null);
+    if (result.finished) {
+      await supabase.from("consultations").update({ patient_token_consumed_at: new Date().toISOString() }).eq("id", data.id).is("patient_token_consumed_at", null);
+      await recordAuditEvent({ action: "patient.result_collected", actorType: "patient", consultationId: data.id, metadata: safeRequestMetadata(req) });
+    }
+    res.json({ result });
   } catch (error) {
-    res.status(502).json({ error: missingColumnHint(error, "0003_patient_collection.sql") || "Your result could not be checked." });
+    res.status(502).json({ error: missingColumnHint(error, "0010_ethics_privacy.sql") || "Your result could not be checked." });
+  }
+});
+
+// The active patient capability can withdraw only optional secondary uses. The
+// clinical record remains available for care and legal recordkeeping.
+consultationsRouter.patch("/:id/consent/withdraw", async (req, res) => {
+  const token = String(req.body.token || "");
+  if (!token) return res.status(404).json({ error: "No consultation was found." });
+  try {
+    const supabase = getSupabaseAdmin();
+    const { data, error } = await supabase.from("consultations")
+      .select("id,patient_id,video_url,patient_token_hash,patient_token_expires_at,patient_token_consumed_at")
+      .eq("id", req.params.id)
+      .maybeSingle();
+    if (error) throw error;
+    const expired = !data?.patient_token_expires_at || new Date(data.patient_token_expires_at).getTime() <= Date.now();
+    if (!data || expired || data.patient_token_consumed_at || !patientTokenMatches(data.patient_token_hash, token)) return res.status(404).json({ error: "No consultation was found." });
+    if (data.video_url) {
+      const { error: storageError } = await supabase.storage.from(BUCKET).remove([data.video_url]);
+      if (storageError) throw storageError;
+    }
+    const withdrawnAt = new Date().toISOString();
+    const { error: updateError } = await supabase.from("consultations").update({ video_url: null, video_consent: false, research_reuse_consent: false, video_retention_until: null }).eq("id", data.id);
+    if (updateError) throw updateError;
+    const { error: consentError } = await supabase.from("consent_records").update({ continuous_video: false, research_reuse: false, withdrawn_at: withdrawnAt }).eq("consultation_id", data.id);
+    if (consentError) throw consentError;
+    await recordAuditEvent({ action: "consent.optional_withdrawn", actorType: "patient", consultationId: data.id, patientId: data.patient_id, metadata: safeRequestMetadata(req) });
+    res.json({ withdrawn: true });
+  } catch (error) {
+    res.status(502).json({ error: missingColumnHint(error, "0010_ethics_privacy.sql") || "Optional consent could not be withdrawn. Ask a health worker for help." });
   }
 });
 
@@ -84,6 +160,7 @@ consultationsRouter.get("/", requireDoctor, async (req, res) => {
     if (!canSeeEveryTier(req.doctor.role)) query = query.eq("assigned_tier", tierForRole(req.doctor.role));
     const { data, error } = await query.order("created_at", { ascending: true });
     if (error) throw error;
+    await recordAuditEvent({ action: "consultation.queue_viewed", actorType: "clinician", actorId: req.doctor.id, metadata: { ...safeRequestMetadata(req), result_count: data.length } });
     res.json({ consultations: data, tier: tierForRole(req.doctor.role), role: req.doctor.role });
   } catch (error) { res.status(502).json({ error: missingColumnHint(error, "0004_task_shifting.sql") || error.message }); }
 });
@@ -100,6 +177,7 @@ consultationsRouter.patch("/:id/escalate", requireDoctor, async (req, res) => {
       .maybeSingle();
     if (error) throw error;
     if (!data) return res.status(404).json({ error: "No consultation was found." });
+    await recordAuditEvent({ action: "consultation.escalated", actorType: "clinician", actorId: req.doctor.id, consultationId: data.id, metadata: safeRequestMetadata(req) });
     res.json({ consultation: data });
   } catch (error) { res.status(502).json({ error: missingColumnHint(error, "0004_task_shifting.sql") || error.message }); }
 });
@@ -118,8 +196,9 @@ consultationsRouter.get("/:id", requireDoctor, async (req, res) => {
       if (signedError) throw signedError;
       signedVideoUrl = signed.signedUrl;
     }
+    await recordAuditEvent({ action: "consultation.viewed", actorType: "clinician", actorId: req.doctor.id, consultationId: data.id, metadata: { ...safeRequestMetadata(req), video_url_issued: Boolean(signedVideoUrl) } });
     res.json({ consultation: { ...data, signedVideoUrl } });
-  } catch (error) { res.status(502).json({ error: error.message }); }
+  } catch (error) { res.status(502).json({ error: missingColumnHint(error, "0010_ethics_privacy.sql") || error.message }); }
 });
 
 consultationsRouter.patch("/:id/status", requireDoctor, async (req, res) => {
@@ -130,6 +209,7 @@ consultationsRouter.patch("/:id/status", requireDoctor, async (req, res) => {
     if (!existing || !canWorkCase(req.doctor.role, existing.assigned_tier)) return res.status(404).json({ error: "No consultation was found." });
     const { data, error } = await supabase.from("consultations").update({ status: req.body.status }).eq("id", req.params.id).select("id,status").single();
     if (error) throw error;
+    await recordAuditEvent({ action: `consultation.${req.body.status}`, actorType: "clinician", actorId: req.doctor.id, consultationId: data.id, metadata: safeRequestMetadata(req) });
     res.json({ consultation: data });
-  } catch (error) { res.status(502).json({ error: error.message }); }
+  } catch (error) { res.status(502).json({ error: missingColumnHint(error, "0010_ethics_privacy.sql") || error.message }); }
 });

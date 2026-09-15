@@ -18,7 +18,7 @@ before spending anything.
 
 Credentials, via environment variable:
     INTRON_API_KEY   voice.intron.io -> sign in -> Developers tab
-    GEMINI_API_KEY   aistudio.google.com
+    GEMINI_API_KEY or GEMINI_API_KEYS (comma-separated)   aistudio.google.com
 (omniasr and whisper run locally, no key)
 """
 
@@ -107,11 +107,20 @@ def make_sahara(args):
 
 def make_gemini(args):
     import requests
-    key = os.environ.get("GEMINI_API_KEY")
-    if not key:
-        sys.exit("set GEMINI_API_KEY (aistudio.google.com)")
+    raw_keys = [os.environ.get("GEMINI_API_KEY", ""),
+                os.environ.get("GEMINI_API_KEYS", "")]
+    keys = []
+    for raw in raw_keys:
+        for key in re.split(r"[,;\n]+", raw):
+            key = key.strip()
+            if key and key not in keys:
+                keys.append(key)
+    if not keys:
+        sys.exit("set GEMINI_API_KEY or GEMINI_API_KEYS (aistudio.google.com)")
     url = ("https://generativelanguage.googleapis.com/v1beta/models/%s:generateContent"
            % args.gemini_model)
+    next_key = [0]
+    cooldown_until = {}
 
     def run(path, lang):
         with open(path, "rb") as f:
@@ -120,9 +129,33 @@ def make_gemini(args):
             {"text": VERBATIM_PROMPT},
             {"inline_data": {"mime_type": "audio/wav", "data": b64}}]}],
             "generationConfig": {"temperature": 0}}
-        r = requests.post(url, headers={"x-goog-api-key": key,
-                                        "Content-Type": "application/json"},
-                          json=body, timeout=180)
+        now = time.time()
+        start = next_key[0] % len(keys)
+        next_key[0] = (next_key[0] + 1) % len(keys)
+        ordered = [keys[(start + i) % len(keys)] for i in range(len(keys))]
+        available = [key for key in ordered if cooldown_until.get(key, 0) <= now]
+        if not available:
+            available = [min(ordered, key=lambda key: cooldown_until.get(key, 0))]
+        r = None
+        for index, key in enumerate(available):
+            try:
+                r = requests.post(url, headers={"x-goog-api-key": key,
+                                                "Content-Type": "application/json"},
+                                  json=body, timeout=180)
+            except requests.RequestException:
+                cooldown_until[key] = time.time() + 10
+                if index < len(available) - 1:
+                    print("    Gemini connection failed on key slot %d/%d; switching"
+                          % (index + 1, len(available)))
+                    continue
+                raise
+            if r.status_code not in (401, 403, 408, 429, 500, 502, 503, 504):
+                break
+            cooldown_until[key] = time.time() + (60 if r.status_code == 429 else
+                                                  300 if r.status_code in (401, 403) else 10)
+            if index < len(available) - 1:
+                print("    Gemini HTTP %d on key slot %d/%d; switching"
+                      % (r.status_code, index + 1, len(available)))
         r.raise_for_status()
         cands = r.json().get("candidates") or []
         if not cands:

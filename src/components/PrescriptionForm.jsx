@@ -60,7 +60,7 @@ export default function PrescriptionForm({ consultationId, onComplete }) {
         frequency: result.prescription.frequency, duration: result.prescription.duration,
         instructions: result.prescription.instructions,
       });
-      setDictation({ transcript, confidence: result.prescription.confidence, sampleId: result.sample_id });
+      setDictation({ transcript, confidence: result.prescription.confidence });
       setWarning(result.warning || "");
       if (result.warning) void readWarning(result.warning);
     } catch (failure) {
@@ -117,6 +117,7 @@ export default function PrescriptionForm({ consultationId, onComplete }) {
         <p aria-live="polite" className="mt-4 min-h-7 text-lg font-black">{STATUS_COPY[dictationControl.status] || "Tap once, then dictate naturally."}</p>
         {recording && <button type="button" onClick={dictationControl.cancel} className="mt-2 min-h-12 px-4 font-black text-[#b8d5cc] underline underline-offset-4">Cancel dictation</button>}
       </div>
+      {language !== "en" && <div className="mt-4 rounded-[14px] bg-[#fff2c7] p-4 font-bold leading-relaxed text-[#6d5510]">Supervised language mode: verify the transcript and every drug, dose, number, unit and abbreviation. Current benchmark evidence does not support unattended acceptance.</div>}
       {(dictationControl.error || error) && <div role="alert" className="mt-4 rounded-[14px] bg-[#fff0e8] p-4 font-bold text-[#8b311f]">{dictationControl.error || error}</div>}
       {dictation?.transcript && <div className="mt-4 border-t border-white/20 pt-4"><span className="text-sm font-black uppercase tracking-[.1em] text-[#b8d5cc]">Sahara transcript</span><p className="mt-2 font-semibold leading-relaxed">“{dictation.transcript}”</p></div>}
     </section>
@@ -153,5 +154,5 @@ function Confirmation({ form, confidence }) {
 }
 
 function Warning({ warning, onRead, onAcknowledge, busy }) {
-  return <div role="alert" className="mt-4 rounded-[14px] bg-[#fff2c7] p-5 text-[#6d5510]"><div className="flex gap-3"><AlertTriangle className="shrink-0" /><div><strong className="block text-lg">Check this against the patient's current medication</strong><p className="mt-2 font-bold leading-relaxed">{warning}</p></div></div><button type="button" onClick={onRead} className="mt-4 flex min-h-12 items-center gap-2 rounded-[12px] bg-white px-4 font-black"><Volume2 />Read warning aloud</button><p className="mt-4 text-sm font-bold">This is a reference check, not a clinical decision. An override is recorded only after you confirm below.</p>{onAcknowledge && <button type="button" onClick={onAcknowledge} disabled={busy} className="mt-4 min-h-14 w-full rounded-[12px] bg-[#8b311f] px-5 font-black text-white disabled:opacity-50">{busy ? "Saving…" : "I have considered this — prescribe anyway"}</button>}</div>;
+  return <div role="alert" className="mt-4 rounded-[14px] bg-[#fff2c7] p-5 text-[#6d5510]"><div className="flex gap-3"><AlertTriangle className="shrink-0" /><div><strong className="block text-lg">Limited medication-history reference found</strong><p className="mt-2 font-bold leading-relaxed">{warning}</p></div></div><button type="button" onClick={onRead} className="mt-4 flex min-h-12 items-center gap-2 rounded-[12px] bg-white px-4 font-black"><Volume2 />Read warning aloud</button><p className="mt-4 text-sm font-bold">This small static list is not a complete interaction, allergy, contraindication, pregnancy, kidney, liver, or dose check. Use your normal clinical references. An override is recorded only after you confirm below.</p>{onAcknowledge && <button type="button" onClick={onAcknowledge} disabled={busy} className="mt-4 min-h-14 w-full rounded-[12px] bg-[#8b311f] px-5 font-black text-white disabled:opacity-50">{busy ? "Saving…" : "I have considered this — prescribe anyway"}</button>}</div>;
 }

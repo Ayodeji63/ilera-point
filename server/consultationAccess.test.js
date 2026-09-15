@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { collectionView, createPatientToken, patientTokenMatches } from "./consultationAccess.js";
+import { collectionView, createPatientToken, hashPatientToken, patientTokenMatches } from "./consultationAccess.js";
 
 const prescription = { drug: "Paracetamol", dosage: "500 mg twice daily", instructions: "After food" };
 
@@ -15,12 +15,14 @@ describe("patient collection token", () => {
     // Flip the last character to something it definitely is not, rather than to
     // a fixed digit it might already be.
     const nearMiss = token.slice(0, -1) + (token.at(-1) === "a" ? "b" : "a");
-    expect(patientTokenMatches(token, token)).toBe(true);
-    expect(patientTokenMatches(token, nearMiss)).toBe(false);
-    expect(patientTokenMatches(token, token.slice(0, -1))).toBe(false);
-    expect(patientTokenMatches(token, "")).toBe(false);
+    const storedHash = hashPatientToken(token);
+    expect(storedHash).not.toBe(token);
+    expect(patientTokenMatches(storedHash, token)).toBe(true);
+    expect(patientTokenMatches(storedHash, nearMiss)).toBe(false);
+    expect(patientTokenMatches(storedHash, token.slice(0, -1))).toBe(false);
+    expect(patientTokenMatches(storedHash, "")).toBe(false);
     expect(patientTokenMatches("", "")).toBe(false);
-    expect(patientTokenMatches(token, undefined)).toBe(false);
+    expect(patientTokenMatches(storedHash, undefined)).toBe(false);
     expect(patientTokenMatches(null, token)).toBe(false);
   });
 });

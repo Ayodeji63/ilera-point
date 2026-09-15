@@ -19,6 +19,13 @@ export async function getConsultationResult(id, token) {
   return body.result;
 }
 
+export async function withdrawOptionalConsent(id, token) {
+  const response = await fetch(`/api/consultations/${id}/consent/withdraw`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token }) });
+  const body = await response.json();
+  if (!response.ok) throw new Error(body.error || "Optional consent could not be withdrawn.");
+  return body;
+}
+
 export const getDoctorQueue = () => doctorRequest("/api/consultations");
 export const escalateCase = (id) => doctorRequest(`/api/consultations/${id}/escalate`, { method: "PATCH" });
 export const getDoctorCase = (id) => doctorRequest(`/api/consultations/${id}`).then((body) => body.consultation);

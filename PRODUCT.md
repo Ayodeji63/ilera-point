@@ -42,9 +42,9 @@ The product is used on a shared full-screen kiosk in a clinic or community healt
 - Summary speech playback and a separate clinician review route.
 - A public, authentication-free Yoruba image-to-speech tool extracts editable text from a JPG, PNG, or WebP image, restores Yoruba orthography without translating code-switched English, assigns editable Sahara voices to screenplay characters, and generates a paced downloadable WAV.
 - API credentials remain server-side.
-- Returning patients search records by name or phone; new patients register their details before the interview.
+- Returning patients use throttled exact full-phone lookup with masked results; new patients register a name and phone before the interview.
 - The kiosk performs no biometric identification and captures no photograph during patient record access.
-- Continuous 640×480 audio/video recording is opt-in, normalized to `video/webm`, and stored privately for human clinician review only.
+- Versioned consent distinguishes required short voice processing, optional continuous 640×480 audio/video, and optional future de-identified research consideration. Video is normalized to `video/webm`, stored privately for human clinician review only, and can be withdrawn from the waiting screen.
 - After recording consent and before the voice interview, vitals use two separate patient-controlled screens. The pulse/oxygen screen remains idle until Start is pressed; after it finishes or is skipped, the kiosk navigates to a temperature screen that also remains idle until Start is pressed. The patient is never asked to position for both sensors simultaneously.
 - Pulse processing discards the contact transient, detrends the IR signal, enforces physiologic peak spacing, checks inter-beat consistency, rejects weak contact and motion, and makes one automatic retry before returning an explicit reason rather than a guessed BPM.
 - Yoruba-English and Igbo-English selections receive localized visible instructions, localized Start controls, automatic Sahara voice guidance on entry, and a replay-instructions control on both sensor screens.
@@ -52,6 +52,9 @@ The product is used on a shared full-screen kiosk in a clinic or community healt
 - Captured sensor output is stored inside `structured_record.vitals` as the available `temperature_c` and/or `heart_rate_bpm`, plus `captured_at`, pulse `confidence`, and `sample_quality`; available readings appear in the patient summary and clinician case review without rendering missing values as measurements.
 - SpO₂ ratio-of-ratios and MLX90614 surface temperature are retained for calibration, but clinical-looking SpO₂ and corrected body-temperature values are displayed and stored only when reference-derived calibration coefficients have been explicitly configured. Raw surface temperature remains visibly labeled as uncalibrated.
 - Supabase persists patients, consultations, doctors, prescriptions, corrected turn history, and any captured vitals within the structured consultation record.
+- Result capabilities are hashed at rest, expire after four hours, and are consumed after collection. Retention deadlines cover video, call audio, operational audit, approved benchmarks, and clinical records.
+- Live clinical speech is separated from research datasets. Content-minimized append-only events record clinical access and AI provider/model/prompt provenance.
+- Non-English voice modes remain supervised and visibly require transcript confirmation until representative clinical benchmarks meet an approved deployment threshold.
 - Doctors authenticate with email/password, review an oldest-first queue including captured temperature and heart rate when present, approve or flag cases, and issue typed or voice-dictated prescriptions.
 - Dictation is transcribed by Sahara, parsed into a non-authoritative draft, checked by a static primary-care formulary and the deterministic medication-history safety layer, and always requires explicit clinician confirmation before writing.
 - No AI video analysis, live video calls, pharmacy inventory, diagnosis, autonomous prescribing, or dispensing.

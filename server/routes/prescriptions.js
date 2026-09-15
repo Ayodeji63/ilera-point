@@ -5,6 +5,9 @@ import { checkPrescription, interactionWarning } from "../medicationSafety.js";
 import { missingColumnHint } from "../schemaHints.js";
 import { parsePrescriptionTranscript, validateParsedPrescription } from "../prescriptionParse.js";
 import { geminiApiKeys, hasGeminiApiKeys } from "../geminiClient.js";
+import { recordAiProcessingEvent, recordAuditEvent } from "../auditEvents.js";
+import { PRESCRIPTION_PROMPT_VERSION, safeRequestMetadata, sha256 } from "../privacy.js";
+import { languageDeployment } from "../languageSafety.js";
 
 export const prescriptionsRouter = Router();
 const LANGUAGE_CODES = new Set(["en", "yo", "pcm", "ha", "ig"]);
@@ -30,31 +33,20 @@ prescriptionsRouter.post("/parse", requireDoctor, async (req, res) => {
   if (!LANGUAGE_CODES.has(languageCode)) return res.status(400).json({ error: "Choose a supported dictation language." });
   if (!hasGeminiApiKeys()) return res.status(503).json({ error: "GEMINI_API_KEY or GEMINI_API_KEYS is not configured." });
 
-  let sampleId = null;
+  const deployment = languageDeployment(languageCode);
+  if (!deployment.allowed) return res.status(503).json({ error: deployment.message, code: "language_disabled" });
+  const parseModel = process.env.GEMINI_PRESCRIPTION_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash-lite";
   const controller = new AbortController();
   const deadline = setTimeout(() => controller.abort(), 10000);
   try {
     const consultation = await clinicianConsultation(req, consultationId);
     if (!consultation) return res.status(404).json({ error: "No consultation was found." });
 
-    // Persist the verbatim ASR output before invoking Gemini. Every dictation is
-    // therefore auditable even when parsing fails or times out.
-    const { data: sample, error: sampleError } = await getSupabaseAdmin().from("benchmark_samples").insert({
-      consultation_id: consultationId,
-      doctor_id: req.doctor.id,
-      language_code: languageCode,
-      speech_file_id: speechFileId,
-      raw_transcript: transcript,
-      provider: "sahara",
-    }).select("id").single();
-    if (sampleError) throw sampleError;
-    sampleId = sample.id;
-
     const candidate = await parsePrescriptionTranscript({
       transcript,
       languageCode,
       apiKey: geminiApiKeys(),
-      model: process.env.GEMINI_PRESCRIPTION_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash-lite",
+      model: parseModel,
       signal: controller.signal,
     });
     const validation = validateParsedPrescription(candidate);
@@ -63,14 +55,19 @@ prescriptionsRouter.post("/parse", requireDoctor, async (req, res) => {
       : { conflicts: [], duplicate: false };
     const warning = validation.valid ? interactionWarning(interaction) : null;
 
-    const { error: updateError } = await getSupabaseAdmin().from("benchmark_samples").update({
-      parsed_output: candidate,
+    await recordAiProcessingEvent({
+      consultationId,
+      actorId: req.doctor.id,
+      purpose: "prescription_draft_extraction",
+      provider: "gemini",
+      model: parseModel,
+      promptVersion: PRESCRIPTION_PROMPT_VERSION,
+      languageCode,
+      inputHash: sha256(transcript),
       valid: validation.valid,
-      validation_errors: validation.errors,
-    }).eq("id", sampleId);
-    if (updateError) throw updateError;
-
-    console.info("[benchmark] prescription dictation", { sampleId, languageCode, valid: validation.valid });
+      errorCode: validation.valid ? null : "parse_invalid",
+    });
+    await recordAuditEvent({ action: "prescription.dictation_parsed", actorType: "clinician", actorId: req.doctor.id, consultationId, outcome: validation.valid ? "success" : "rejected", metadata: { ...safeRequestMetadata(req), provider: "sahara", parse_model: parseModel, prompt_version: PRESCRIPTION_PROMPT_VERSION, language_code: languageCode, speech_file_present: Boolean(speechFileId) } });
     if (!validation.valid) {
       return res.status(422).json({
         error: validation.errors[0]?.message || "The dictation could not be parsed safely; please type it.",
@@ -79,11 +76,9 @@ prescriptionsRouter.post("/parse", requireDoctor, async (req, res) => {
         errors: validation.errors,
       });
     }
-    return res.json({ transcript, prescription: validation.prescription, interaction, warning, sample_id: sampleId });
+    return res.json({ transcript, prescription: validation.prescription, interaction, warning, language_safety: deployment });
   } catch (error) {
-    if (sampleId) {
-      await getSupabaseAdmin().from("benchmark_samples").update({ valid: false, validation_errors: [{ field: "model", message: "Parsing failed." }] }).eq("id", sampleId);
-    }
+    await recordAiProcessingEvent({ consultationId, actorId: req.doctor.id, purpose: "prescription_draft_extraction", provider: "gemini", model: parseModel, promptVersion: PRESCRIPTION_PROMPT_VERSION, languageCode, inputHash: sha256(transcript), valid: false, errorCode: controller.signal.aborted ? "timeout" : "provider_error" });
     const hint = missingColumnHint(error, "0009_prescription_dictation.sql");
     return res.status(hint ? 502 : controller.signal.aborted ? 504 : 502).json({ error: hint || (controller.signal.aborted ? "Prescription parsing timed out. Your transcript is preserved; please type it." : error.message) });
   } finally {
@@ -134,10 +129,14 @@ prescriptionsRouter.post("/", requireDoctor, async (req, res) => {
       dictated: Boolean(dictated),
       raw_transcript: dictated ? String(raw_transcript).trim() : null,
       parse_confidence: dictated ? values.confidence : null,
+      parse_provider: dictated ? "gemini" : null,
+      parse_model: dictated ? (process.env.GEMINI_PRESCRIPTION_MODEL || process.env.GEMINI_MODEL || "gemini-2.5-flash-lite") : null,
+      prompt_version: dictated ? PRESCRIPTION_PROMPT_VERSION : null,
     }).select("*").single();
     if (error) throw error;
     const { error: updateError } = await supabase.from("consultations").update({ status: "complete" }).eq("id", consultation_id);
     if (updateError) { await supabase.from("prescriptions").delete().eq("id", data.id); throw updateError; }
+    await recordAuditEvent({ action: warning ? "prescription.saved_with_override" : "prescription.saved", actorType: "clinician", actorId: req.doctor.id, consultationId: consultation_id, metadata: { ...safeRequestMetadata(req), dictated: Boolean(dictated), interaction_acknowledged: Boolean(warning) } });
     res.status(201).json({ prescription: data });
-  } catch (error) { res.status(502).json({ error: missingColumnHint(error, "0009_prescription_dictation.sql") || missingColumnHint(error, "0005_prescription_safety.sql") || error.message }); }
+  } catch (error) { res.status(502).json({ error: missingColumnHint(error, "0010_ethics_privacy.sql") || missingColumnHint(error, "0009_prescription_dictation.sql") || missingColumnHint(error, "0005_prescription_safety.sql") || error.message }); }
 });

@@ -21,8 +21,12 @@ import { vitalsRouter } from "./routes/vitals.js";
 import { telephonyRouter } from "./routes/telephony.js";
 import { startVoiceCallRetryWorker } from "./voiceCalls.js";
 import { geminiApiKeys, geminiGenerateContent, hasGeminiApiKeys } from "./geminiClient.js";
+import { languageDeployment } from "./languageSafety.js";
 
 const app = express();
+// Render/Vercel sit in front of Express. Trust only the nearest proxy so
+// per-client privacy throttles use the forwarded client address.
+app.set("trust proxy", 1);
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 const port = process.env.PORT || 8787;
 const host = process.env.HOST || undefined;
@@ -47,6 +51,10 @@ app.use("/api/doctors", doctorsRouter);
 app.use("/api/consultations", consultationsRouter);
 app.use("/api/prescriptions", prescriptionsRouter);
 app.use("/api/vitals", vitalsRouter);
+
+app.get("/api/languages", (_req, res) => {
+  res.json({ languages: [...SUPPORTED_LANGUAGE_CODES].map((code) => ({ code, ...languageDeployment(code) })) });
+});
 
 const YORUBA_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
@@ -136,6 +144,8 @@ app.post("/api/interview", async (req, res) => {
   if (!record || !Array.isArray(turns) || turns.length === 0) return res.status(400).json({ error: "Conversation history and the current record are required." });
   if (turns.length > MAX_INTERVIEW_TURNS) return res.status(400).json({ error: `The interview cannot exceed ${MAX_INTERVIEW_TURNS} turns.` });
   if (!SUPPORTED_LANGUAGE_CODES.has(languageCode)) return res.status(400).json({ error: `Unsupported language code: ${languageCode}.` });
+  const languageSafety = languageDeployment(languageCode);
+  if (!languageSafety.allowed) return res.status(503).json({ error: languageSafety.message, code: "language_disabled" });
   const invalidTurn = turns.some((turn, index) => turn.turn_number !== index + 1 || !turn.question_asked?.trim() || !turn.transcript?.trim() || !turn.timestamp);
   if (invalidTurn) return res.status(400).json({ error: "Conversation history contains an invalid turn." });
   if (!hasGeminiApiKeys()) return res.status(503).json({ error: "GEMINI_API_KEY or GEMINI_API_KEYS is not configured." });
@@ -162,7 +172,7 @@ app.post("/api/interview", async (req, res) => {
     if (result.interview_complete) result.next_question = "";
     else result.next_question = selectNextQuestion(result.next_question || "", turns, missing, languageCode);
     const duration = Math.round(performance.now() - startedAt); res.set("Server-Timing", `gemini;dur=${duration}`); console.info("[latency] interview", { durationMs: duration, model, turn: nextTurn });
-    res.json(result);
+    res.json({ ...result, language_safety: languageSafety, ai_provenance: { provider: "gemini", model, prompt_version: "intake-2026-09-15.v1" } });
   } catch (error) {
     // If Gemini has a transient failure after a conclusive "no other symptoms"
     // answer, advance deterministically instead of forcing the patient to repeat
