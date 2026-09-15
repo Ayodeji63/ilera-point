@@ -277,7 +277,7 @@ Vitals use two distinct 1152px route boards: pulse/oxygen first and forehead tem
 
 The public Yoruba image-to-speech route uses a 1280px work area and one joined two-panel board. At large widths, the dark upload/preview panel takes 0.9fr and the white transcription/audio panel takes 1.1fr; below the large breakpoint they stack in source-to-output order. Both panels keep a 520px minimum working height on wide layouts, while action buttons stack by default and share a row from the small breakpoint upward. On mobile, both grid children and the image preview explicitly permit shrinking and clip accidental spill; filenames and cast names truncate, capability copy wraps anywhere when necessary, and each voice-control pair remains intact so no content forces horizontal page overflow.
 
-The authenticated doctor workspace increases information density without becoming dashboard chrome. Its queue is a single 1180px chronological list. Case review expands to 1320px with a 1.1/0.9 record-to-evidence split, while the prescription route narrows to 896px and a 0.8/1.2 context-to-form split so prescribing reads as a distinct committing stage rather than another case action.
+The authenticated doctor workspace increases information density without becoming dashboard chrome. Its queue is a single 1180px chronological list. Case review expands to 1320px with a 1.1/0.9 record-to-evidence split, while the prescription route narrows to 896px and uses a 0.8/1.2 evidence-to-form split from the medium breakpoint upward. Below that breakpoint, the evidence panel, dictation panel, and prescription form stack in that reading order so patient context remains ahead of the committing action.
 
 Spacing follows an 8px-root rhythm, most visibly through 12, 16, 24, 32, and 40px intervals. Panels use generous padding and a minimum 66vh working height during conversation. At 640px and below, the welcome layout compresses deliberately: the action circle reduces to 250px, supporting text tightens, and the two columns stack. Action groups stack on narrow screens and become horizontal when space allows.
 
@@ -403,7 +403,17 @@ The authenticated clinician workspace keeps the board’s green, chalk, type, ra
 
 ### Prescription Stage
 
-Prescription is a separate route at `/doctor/case/:id/prescribe`, with its own heading, back-to-case action, patient concern context, and focused form. Drug and dosage share a two-column row at medium widths, instructions occupy the full width, and the single dominant submit action states that saving also completes the consultation.
+Prescription is a separate route at `/doctor/case/:id/prescribe`, with its own heading and a clear back-to-case action. An evidence-first clinic-green sidebar names the patient, states that speech always becomes a draft, and keeps the main concern and medication history beside the prescribing controls. It remains sticky on medium and wider screens; on mobile it appears before dictation and the form.
+
+The dictation panel offers an explicit clinician language selector for English, Yorùbá + English, Pidgin + English, Hausa + English, and Igbo + English. Its 128px circular microphone is sunlit yellow at rest, changes to listening coral with a stop icon while recording, and becomes a disabled processing control while transcription and parsing complete. Plain-language status announces opening, waiting, listening, finishing, transcribing, and field checking; recording also exposes a separate cancel action. The status is live, the panel exposes busy state, the microphone has a changing accessible name, and errors remain visible as alerts. The Sahara transcript stays visible after capture, including when a rejected parse leaves the clinician to type deliberately.
+
+Speech output is never written directly. A successful parse fills the editable Drug, Dose, Frequency, Duration, and Instructions fields, then adds a pale-green confirmation record that repeats every field, identifies missing values, shows parse confidence only as supporting information, and directs the clinician to check drug and dose against the patient record. The clinician must choose either **Discard and type** or an explicit **Confirm and save prescription** action. Typed prescribing remains available independently and its dominant action states that saving completes the consultation. At medium widths, the four compact fields form two columns while Instructions spans the form; all fields stack on mobile.
+
+Medication-history matches appear in a warning-wash alert with a text explanation, a **Read warning aloud** recovery control in the selected language, and a reminder that the check is a reference rather than a clinical decision. Saving through a warning requires an explicit, recorded acknowledgment—either the typed override or the dictated confirmation whose label states that the warning was considered. Warning, error, recording, processing, disabled, and saving states all remain explicit in text as well as color; fields and the microphone retain the universal 4px focus-blue treatment.
+
+**The Speech Is Always Draft Rule.** Dictation may populate editable fields, but it must never bypass the repeated-field confirmation record or the clinician’s explicit save action.
+
+**The Medication Warning Is Deliberate Rule.** Keep the patient’s medication history visible before entry, present deterministic matches as reference warnings, and require a named acknowledgment before an override is written.
 
 **The Prescribing Is a Commitment Rule.** Do not collapse prescription fields into the case action rail or style them as a quick inline note. The dedicated stage makes clinician authorship and completion consequence explicit.
 
@@ -430,7 +440,8 @@ Prescription is a separate route at `/doctor/case/:id/prescribe`, with its own h
 - **Do** expose detected cast voices as pressed-state Female/Male controls, omit speaker labels from audio, and preserve screenplay order in the assembled WAV.
 - **Do** keep the stacked Yoruba workspace free of horizontal overflow by allowing panels and previews to shrink, truncating long names, and wrapping capability text.
 - **Do** keep clinician queue order, patient-reported evidence, recording availability, and urgent status explicit in text.
-- **Do** preserve prescription as a separate stage with patient context, a clear return path, and one completion action.
+- **Do** preserve prescription as a separate stage with evidence first, a clear return path, speech-as-draft confirmation, and an explicit completion action.
+- **Do** keep medication warnings readable, available aloud in the selected dictation language, and tied to a recorded clinician acknowledgment.
 
 ### Don't:
 
@@ -447,3 +458,4 @@ Prescription is a separate route at `/doctor/case/:id/prescribe`, with its own h
 - **Don't** hide Yoruba transcription behind audio generation, retain stale audio after text edits, or require authentication for the public converter.
 - **Don't** flatten screenplay structure, read character headings aloud, split the final result into separate gender tracks, or let cast controls overflow the mobile viewport.
 - **Don't** merge clinician review and prescribing into one dense surface or imply that the patient-reported record is a diagnosis.
+- **Don't** let a transcript, parse confidence, or medication reference check prescribe autonomously or silently bypass clinician confirmation.

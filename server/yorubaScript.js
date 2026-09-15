@@ -1,3 +1,5 @@
+import { geminiGenerateContent } from "./geminiClient.js";
+
 const SCRIPT_SCHEMA = {
   type: "OBJECT",
   properties: {
@@ -33,10 +35,7 @@ Rules:
 
 OCR transcription:
 ${text}`;
-  const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const response = await geminiGenerateContent({ model, apiKeys: apiKey, signal, fetchImpl, body: {
       contents: [{ role: "user", parts: [{ text: prompt }] }],
       generationConfig: {
         responseMimeType: "application/json",
@@ -45,9 +44,7 @@ ${text}`;
         maxOutputTokens: 8192,
         thinkingConfig: { thinkingBudget: 0 },
       },
-    }),
-    signal,
-  });
+  } });
   const body = await response.json();
   if (!response.ok) throw new Error(body.error?.message || "Yoruba screenplay preparation failed.");
   const raw = body.candidates?.[0]?.content?.parts?.[0]?.text;

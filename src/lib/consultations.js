@@ -24,3 +24,4 @@ export const escalateCase = (id) => doctorRequest(`/api/consultations/${id}/esca
 export const getDoctorCase = (id) => doctorRequest(`/api/consultations/${id}`).then((body) => body.consultation);
 export const setCaseStatus = (id, status) => doctorRequest(`/api/consultations/${id}/status`, { method: "PATCH", body: JSON.stringify({ status }) });
 export const createPrescription = (payload) => doctorRequest("/api/prescriptions", { method: "POST", body: JSON.stringify(payload) });
+export const parsePrescription = (payload) => doctorRequest("/api/prescriptions/parse", { method: "POST", body: JSON.stringify(payload) });

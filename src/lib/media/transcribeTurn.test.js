@@ -34,6 +34,12 @@ describe("turn transcription", () => {
     await expect(transcribeTurn({ transcriber: null, blob, language: "en", upload })).resolves.toBe("uploaded");
   });
 
+  it("can retain the Sahara file id for clinician benchmark audit", async () => {
+    const upload = vi.fn().mockResolvedValue({ transcript: "Paracetamol 500 mg TDS", fileId: "sahara-file-1" });
+    await expect(transcribeTurn({ transcriber: null, blob, language: "en", upload, withMetadata: true }))
+      .resolves.toEqual({ transcript: "Paracetamol 500 mg TDS", fileId: "sahara-file-1", mode: "upload" });
+  });
+
   it("does not retry a turn the patient cancelled", async () => {
     const upload = vi.fn();
     const signal = { aborted: true };

@@ -1,3 +1,5 @@
+import { geminiGenerateContent } from "./geminiClient.js";
+
 const OCR_SCHEMA = {
   type: "OBJECT",
   properties: {
@@ -7,10 +9,7 @@ const OCR_SCHEMA = {
 };
 
 export async function extractYorubaText({ image, mimeType, apiKey, model = "gemini-2.5-flash-lite", signal, fetchImpl = fetch }) {
-  const response = await fetchImpl(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
+  const response = await geminiGenerateContent({ model, apiKeys: apiKey, signal, fetchImpl, body: {
       contents: [{
         role: "user",
         parts: [
@@ -25,9 +24,7 @@ export async function extractYorubaText({ image, mimeType, apiKey, model = "gemi
         maxOutputTokens: 4096,
         thinkingConfig: { thinkingBudget: 0 },
       },
-    }),
-    signal,
-  });
+  } });
   const body = await response.json();
   if (!response.ok) throw new Error(body.error?.message || "Yoruba text extraction failed.");
   const raw = body.candidates?.[0]?.content?.parts?.[0]?.text;

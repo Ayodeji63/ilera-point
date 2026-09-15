@@ -2,7 +2,7 @@
 // talking, so it is tried first. The recording captured alongside it is the
 // fallback whenever the socket did not work out — a patient should never have
 // to repeat an answer because a connection dropped.
-export async function transcribeTurn({ transcriber, blob, language, signal, upload, onFallback = () => {} }) {
+export async function transcribeTurn({ transcriber, blob, language, signal, upload, onFallback = () => {}, withMetadata = false }) {
   if (transcriber) {
     try {
       let removeAbortListener = () => {};
@@ -18,7 +18,7 @@ export async function transcribeTurn({ transcriber, blob, language, signal, uplo
         }
       });
       const transcript = await Promise.race([transcriber.commit(), aborted]).finally(removeAbortListener);
-      if (transcript.trim()) return transcript;
+      if (transcript.trim()) return withMetadata ? { transcript, fileId: null, mode: "stream" } : transcript;
       onFallback("Live transcription returned no words.");
     } catch (error) {
       if (signal?.aborted) throw error;
@@ -26,5 +26,5 @@ export async function transcribeTurn({ transcriber, blob, language, signal, uplo
     }
   }
   const result = await upload(blob, language, "standard", signal);
-  return result.transcript;
+  return withMetadata ? { transcript: result.transcript, fileId: result.fileId || null, mode: "upload" } : result.transcript;
 }

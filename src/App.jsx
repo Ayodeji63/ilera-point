@@ -28,7 +28,7 @@ import {
   updateSessionRecord,
 } from "./lib/interview/session";
 import { SessionRecorder } from "./lib/media/sessionRecorder";
-import { TurnTranscriber } from "./lib/media/pcmStream";
+import { connectTurnTranscriber } from "./lib/media/pcmStream";
 import { transcribeTurn } from "./lib/media/transcribeTurn";
 import { getConsultationResult, saveConsultation } from "./lib/consultations";
 import { getDoctorAccount } from "./lib/doctors";
@@ -521,14 +521,15 @@ export default function App() {
         onAudio: (context, source) => {
           // Live transcription is an optimisation: if it cannot start, the
           // recorded blob still goes to the file upload route below.
-          if (!TurnTranscriber.supported(context)) return;
-          const live = new TurnTranscriber(language);
+          const live = connectTurnTranscriber({
+            context,
+            source,
+            languageCode: language,
+            onUnavailable: () => { if (transcriber === live) transcriber = null; },
+          });
+          if (!live) return;
           transcriber = live;
           liveTranscriber.current = live;
-          // open() first: it claims the socket synchronously, so the worklet
-          // attached alongside it knows to buffer until the connection is ready.
-          Promise.all([live.open(context.sampleRate), live.attach(context, source)])
-            .catch(() => { if (transcriber === live) transcriber = null; live.close(); });
         },
       });
       const blob = await finished;

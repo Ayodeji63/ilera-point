@@ -1,0 +1,7 @@
+[
+  { "id": "yo-paracetamol-tds", "audio": "audio/yo-paracetamol-tds.webm", "language": "yo", "reference": "Fun ni paracetamol 500 mg TDS fun 5 days, ko mu after food", "drug": "paracetamol", "dose": "500 mg", "abbreviations": ["TDS"] },
+  { "id": "ig-amoxicillin-bd", "audio": "audio/ig-amoxicillin-bd.webm", "language": "ig", "reference": "Nye ya amoxicillin 500 mg BD for 7 days, take after food", "drug": "amoxicillin", "dose": "500 mg", "abbreviations": ["BD"] },
+  { "id": "ha-amlodipine-od", "audio": "audio/ha-amlodipine-od.webm", "language": "ha", "reference": "A ba shi amlodipine 5 mg OD for one month, take every morning", "drug": "amlodipine", "dose": "5 mg", "abbreviations": ["OD"] },
+  { "id": "pcm-salbutamol-prn", "audio": "audio/pcm-salbutamol-prn.webm", "language": "pcm", "reference": "Give salbutamol two puffs PRN for 2 weeks, use when wheezing starts", "drug": "salbutamol", "dose": "2 puffs", "abbreviations": ["PRN"] },
+  { "id": "yo-metronidazole-bd", "audio": "audio/yo-metronidazole-bd.webm", "language": "yo", "reference": "Ko lo metronidazole 400 mg BD fun 5 days, ko mu leyin ounje", "drug": "metronidazole", "dose": "400 mg", "abbreviations": ["BD"] }
+]

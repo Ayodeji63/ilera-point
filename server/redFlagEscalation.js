@@ -1,10 +1,10 @@
 import { getSupabaseAdmin } from "./supabaseAdmin.js";
 import { synthesizeWithSaharaGenerate } from "./saharaTts.js";
-import { escalationNumber, placeCall } from "./telephony.js";
+import { escalationNumber, placeCall, telephonyProvider } from "./telephony.js";
 import { isTransientSaharaFailure } from "./speechRetry.js";
+import { createVoiceCall, recordInitialPlacement, scheduleVoiceCallRetry, updateVoiceCall } from "./voiceCalls.js";
 
 const BUCKET = process.env.SUPABASE_ALERT_BUCKET || "escalation-alerts";
-const ALERT_URL_TTL_SECONDS = 60 * 30;
 
 // Sahara caps the streaming TTS socket at three connections a minute, and those
 // belong to the patient at the kiosk. An alert uses the generate endpoint
@@ -63,7 +63,9 @@ async function renderAlert(text, apiKey, signal, attempts = 3) {
 export async function escalateRedFlag({ consultationId, triggers, signal }) {
   const apiKey = process.env.SAHARA_API_KEY;
   if (!apiKey) return { escalated: false, reason: "SAHARA_API_KEY is not configured" };
+  if (!telephonyProvider()) return { escalated: false, reason: "no telephony provider configured" };
   const to = escalationNumber();
+  if (!to) return { escalated: false, reason: "ESCALATION_PHONE_NUMBER is not set" };
 
   const audio = await renderAlert(alertScript(triggers), apiKey, signal);
 
@@ -71,11 +73,25 @@ export async function escalateRedFlag({ consultationId, triggers, signal }) {
   const path = alertPath(consultationId);
   const { error: uploadError } = await supabase.storage.from(BUCKET).upload(path, audio, { contentType: "audio/wav", upsert: false });
   if (uploadError) throw uploadError;
-  const { data: signed, error: signedError } = await supabase.storage.from(BUCKET).createSignedUrl(path, ALERT_URL_TTL_SECONDS);
-  if (signedError) throw signedError;
 
-  const call = await placeCall({ to, audioUrl: signed.signedUrl, signal });
-  return { escalated: call.placed, audioPath: path, ...call };
+  const intent = await createVoiceCall({ kind: "escalation", consultationId, audioPath: path, to });
+  try {
+    const call = await placeCall({ to, callId: intent.id, signal });
+    await recordInitialPlacement(intent, call);
+    if (!call.placed) await scheduleVoiceCallRetry({ ...intent, attempts: 1 });
+    return { escalated: call.placed, audioPath: path, callId: intent.id, ...call };
+  } catch (error) {
+    // The durable intent remains actionable even when the provider's first
+    // request fails. Scheduling is also best effort; the outer background
+    // boundary still contains every failure away from consultation saving.
+    try {
+      await updateVoiceCall(intent.id, { status: "placement_failed", attempts: 1 });
+      await scheduleVoiceCallRetry({ ...intent, attempts: 1 });
+    } catch (scheduleError) {
+      console.error("[escalation] initial call retry could not be scheduled", { callId: intent.id, message: scheduleError.message });
+    }
+    throw error;
+  }
 }
 
 // Fire and forget. The consultation is already saved by the time this runs.

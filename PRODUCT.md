@@ -52,8 +52,9 @@ The product is used on a shared full-screen kiosk in a clinic or community healt
 - Captured sensor output is stored inside `structured_record.vitals` as the available `temperature_c` and/or `heart_rate_bpm`, plus `captured_at`, pulse `confidence`, and `sample_quality`; available readings appear in the patient summary and clinician case review without rendering missing values as measurements.
 - SpO₂ ratio-of-ratios and MLX90614 surface temperature are retained for calibration, but clinical-looking SpO₂ and corrected body-temperature values are displayed and stored only when reference-derived calibration coefficients have been explicitly configured. Raw surface temperature remains visibly labeled as uncalibrated.
 - Supabase persists patients, consultations, doctors, prescriptions, corrected turn history, and any captured vitals within the structured consultation record.
-- Doctors authenticate with email/password, review an oldest-first queue including captured temperature and heart rate when present, approve or flag cases, and issue plain-text prescriptions.
-- No AI video analysis, live video calls, drug interaction checks, pharmacy inventory, diagnosis, autonomous prescribing, or dispensing.
+- Doctors authenticate with email/password, review an oldest-first queue including captured temperature and heart rate when present, approve or flag cases, and issue typed or voice-dictated prescriptions.
+- Dictation is transcribed by Sahara, parsed into a non-authoritative draft, checked by a static primary-care formulary and the deterministic medication-history safety layer, and always requires explicit clinician confirmation before writing.
+- No AI video analysis, live video calls, pharmacy inventory, diagnosis, autonomous prescribing, or dispensing.
 
 ## Brand Commitments
 

@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "start": "node server/index.js",
     "test": "vitest run",
-    "benchmark:hausa": "node scripts/benchmark-hausa.mjs"
+    "benchmark:hausa": "node scripts/benchmark-hausa.mjs",
+    "benchmark:asr": "node scripts/benchmark-asr.js"
   },
   "dependencies": {
     "@fontsource-variable/atkinson-hyperlegible-next": "^5.3.0",

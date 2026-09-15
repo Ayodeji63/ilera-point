@@ -105,3 +105,17 @@ export class TurnTranscriber {
     this.socket = null;
   }
 }
+
+// Shared by patient intake and clinician dictation so both use the same Sahara
+// live socket, PCM worklet and file-upload fallback rather than competing audio
+// pipelines with subtly different behaviour.
+export function connectTurnTranscriber({ context, source, languageCode, onUnavailable = () => {} }) {
+  if (!TurnTranscriber.supported(context)) return null;
+  const live = new TurnTranscriber(languageCode);
+  Promise.all([live.open(context.sampleRate), live.attach(context, source)])
+    .catch((error) => {
+      live.close();
+      onUnavailable(error);
+    });
+  return live;
+}
